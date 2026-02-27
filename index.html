@@ -68,8 +68,30 @@
           const [showSuccess, setShowSuccess] = useState(false);
           const [isSaving, setIsSaving] = useState(false);
 
+          // Fungsi menambah token baru
+          const handleAddToken = () => {
+            setTempSettings({
+              ...tempSettings,
+              tokens: [...tempSettings.tokens, { token: '', url: '' }]
+            });
+          };
+
+          // Fungsi mengubah nilai token
+          const handleTokenChange = (index, field, value) => {
+            const newTokens = [...tempSettings.tokens];
+            newTokens[index][field] = value;
+            setTempSettings({ ...tempSettings, tokens: newTokens });
+          };
+
+          // Fungsi menghapus token
+          const handleRemoveToken = (index) => {
+            const newTokens = [...tempSettings.tokens];
+            newTokens.splice(index, 1);
+            setTempSettings({ ...tempSettings, tokens: newTokens });
+          };
+
           const handleSave = async () => {
-            // Helper untuk format URL
+            // Helper untuk format URL agar menjadi iframe Google Forms yg rapi
             const formatUrl = (url) => {
               if (!url) return "";
               if (url.includes('docs.google.com/forms') && !url.includes('embedded=true')) {
@@ -78,12 +100,17 @@
               return url;
             };
             
+            // Format URL di setiap token sebelum disimpan
+            const formattedTokens = tempSettings.tokens.map(t => ({
+              token: t.token.trim(),
+              url: formatUrl(t.url)
+            })).filter(t => t.token !== '' && t.url !== ''); // Jangan simpan yang kosong
+
             const newSettings = { 
               ...tempSettings, 
-              examUrl7: formatUrl(tempSettings.examUrl7),
-              examUrl8: formatUrl(tempSettings.examUrl8),
-              examUrl9: formatUrl(tempSettings.examUrl9)
+              tokens: formattedTokens
             };
+
             setSettings(newSettings);
             localStorage.setItem('exambro_settings', JSON.stringify(newSettings));
             
@@ -93,9 +120,7 @@
               try {
                 const formData = new URLSearchParams();
                 formData.append('examTitle', newSettings.examTitle);
-                formData.append('examUrl7', newSettings.examUrl7);
-                formData.append('examUrl8', newSettings.examUrl8);
-                formData.append('examUrl9', newSettings.examUrl9);
+                formData.append('tokensData', JSON.stringify(newSettings.tokens)); // Kirim array objek sebagai string
                 formData.append('duration', newSettings.duration);
 
                 await fetch(GOOGLE_SCRIPT_URL, {
@@ -115,7 +140,7 @@
                 setView('home');
               }, 1500);
             } else {
-              // Jika URL Script belum diisi, simpan ke lokal saja seperti biasa
+              // Jika URL Script belum diisi, simpan ke lokal saja
               setShowSuccess(true);
               setTimeout(() => {
                 setShowSuccess(false);
@@ -139,56 +164,73 @@
                   </div>
                 )}
 
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Judul Ujian</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Judul Ujian Utama</label>
                     <input 
                       type="text" 
                       className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
                       value={tempSettings.examTitle}
                       onChange={(e) => setTempSettings({...tempSettings, examTitle: e.target.value})}
+                      placeholder="Misal: Penilaian Tengah Semester"
                     />
                   </div>
                   
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-4">
-                    <p className="font-bold text-blue-800 text-sm"><i className="fa-solid fa-link"></i> Link Soal per Kelas (Google Forms)</p>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Link Kelas 7</label>
-                      <input 
-                        type="text" 
-                        className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={tempSettings.examUrl7}
-                        onChange={(e) => setTempSettings({...tempSettings, examUrl7: e.target.value})}
-                        placeholder="Masukkan link soal untuk kelas 7..."
-                      />
+                  {/* --- BAGIAN PENGATURAN TOKEN --- */}
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="font-bold text-blue-800 text-sm">
+                        <i className="fa-solid fa-key mr-2"></i>Daftar Token & Link Soal
+                      </p>
+                      <button 
+                        onClick={handleAddToken}
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
+                      >
+                        <i className="fa-solid fa-plus"></i> Tambah Token
+                      </button>
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Link Kelas 8</label>
-                      <input 
-                        type="text" 
-                        className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={tempSettings.examUrl8}
-                        onChange={(e) => setTempSettings({...tempSettings, examUrl8: e.target.value})}
-                        placeholder="Masukkan link soal untuk kelas 8..."
-                      />
+
+                    <div className="space-y-4">
+                      {tempSettings.tokens.length === 0 && (
+                        <p className="text-sm text-slate-500 text-center italic">Belum ada token. Klik "Tambah Token" untuk membuat.</p>
+                      )}
+                      
+                      {tempSettings.tokens.map((item, index) => (
+                        <div key={index} className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col sm:flex-row gap-3 relative">
+                          <div className="w-full sm:w-1/3">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kode Token</label>
+                            <input 
+                              type="text" 
+                              className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono"
+                              value={item.token}
+                              onChange={(e) => handleTokenChange(index, 'token', e.target.value)}
+                              placeholder="Misal: MTK01"
+                            />
+                          </div>
+                          <div className="w-full sm:w-2/3">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Link Soal (Google Form)</label>
+                            <input 
+                              type="text" 
+                              className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                              value={item.url}
+                              onChange={(e) => handleTokenChange(index, 'url', e.target.value)}
+                              placeholder="https://docs.google.com/forms/..."
+                            />
+                          </div>
+                          <button 
+                            onClick={() => handleRemoveToken(index)}
+                            className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-500 text-red-600 hover:text-white w-6 h-6 rounded-full flex items-center justify-center transition-colors shadow-sm"
+                            title="Hapus Token"
+                          >
+                            <i className="fa-solid fa-times text-xs"></i>
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Link Kelas 9</label>
-                      <input 
-                        type="text" 
-                        className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={tempSettings.examUrl9}
-                        onChange={(e) => setTempSettings({...tempSettings, examUrl9: e.target.value})}
-                        placeholder="Masukkan link soal untuk kelas 9..."
-                      />
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Gunakan Google Forms. Kosongkan link pada kelas yang sedang tidak ada ujian.
-                    </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Durasi Ujian (Menit)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Durasi Ujian Semua Sesi (Menit)</label>
                     <input 
                       type="number" 
                       className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -225,34 +267,36 @@
 
           const startExam = async () => {
             setErrorMsg('');
-            if (!student.name || !student.kelas) {
-              setErrorMsg("Harap isi Nama Lengkap dan Pilih Kelas Anda!");
+            
+            // Validasi Input
+            if (!student.name || !student.token) {
+              setErrorMsg("Harap isi Nama Lengkap dan Token Ujian!");
               return;
             }
 
-            // Cek apakah link soal untuk kelas yang dipilih tersedia
-            let selectedUrl = '';
-            if (student.kelas === '7') selectedUrl = settings.examUrl7;
-            if (student.kelas === '8') selectedUrl = settings.examUrl8;
-            if (student.kelas === '9') selectedUrl = settings.examUrl9;
+            // Pencocokan Token dengan Link
+            const enteredToken = student.token.trim().toUpperCase();
+            const matchedExam = settings.tokens.find(t => t.token.toUpperCase() === enteredToken);
 
-            if (!selectedUrl) {
-              setErrorMsg(`Maaf, link soal untuk Kelas ${student.kelas} belum diatur oleh Admin. Ujian belum bisa dimulai.`);
+            if (!matchedExam) {
+              setErrorMsg("Token tidak valid atau tidak ditemukan! Silakan periksa kembali Token Anda.");
               return;
             }
             
+            // Simpan link aktif yang cocok dengan token ke data student
+            setStudent({ ...student, activeUrl: matchedExam.url });
             setIsLoading(true);
 
             // Meminta Izin Kamera Sebelum Masuk Ujian
             try {
               const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-              // Jika diizinkan, matikan stream sementara agar tidak dobel. Layar Ujian (ExamView) akan menyalakannya kembali secara otomatis.
+              // Matikan sementara agar tidak dobel. ExamView akan memanggil ulang
               stream.getTracks().forEach(track => track.stop());
             } catch (err) {
               console.warn("Kamera diblokir/ditolak:", err);
               setErrorMsg("Akses kamera WAJIB diizinkan untuk dapat mengikuti ujian ini! Silakan izinkan akses kamera pada popup browser Anda.");
               setIsLoading(false);
-              return; // Hentikan proses di sini, jangan masuk ke layar ujian
+              return;
             }
 
             // Meminta akses Fullscreen
@@ -261,8 +305,7 @@
                 await document.documentElement.requestFullscreen();
               }
             } catch (err) {
-              // Mengganti console.error dengan console.warn agar tidak memunculkan popup merah di lingkungan iframe/preview
-              console.warn("Fullscreen API diblokir oleh lingkungan saat ini (misal: di dalam iframe). Aplikasi akan tetap dilanjutkan.");
+              console.warn("Fullscreen diblokir oleh lingkungan iframe.");
             }
 
             setExamState({
@@ -285,7 +328,7 @@
 
                 <div className="space-y-4">
                   {errorMsg && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-sm" role="alert">
                       <span className="block sm:inline">{errorMsg}</span>
                     </div>
                   )}
@@ -301,17 +344,14 @@
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Pilih Kelas</label>
-                    <select 
-                      className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 bg-white"
-                      value={student.kelas}
-                      onChange={(e) => setStudent({...student, kelas: e.target.value})}
-                    >
-                      <option value="" disabled>-- Pilih Kelas Anda --</option>
-                      <option value="7">Kelas 7</option>
-                      <option value="8">Kelas 8</option>
-                      <option value="9">Kelas 9</option>
-                    </select>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Token Ujian</label>
+                    <input 
+                      type="text" 
+                      className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 uppercase font-mono tracking-widest"
+                      value={student.token}
+                      onChange={(e) => setStudent({...student, token: e.target.value})}
+                      placeholder="Masukkan token dari Guru"
+                    />
                   </div>
                   
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6 text-sm text-yellow-800">
@@ -355,27 +395,21 @@
         // --- KOMPONEN: INTERFACE UJIAN UTAMA ---
         const ExamView = ({ settings, student, examState, setExamState, setView }) => {
           const videoRef = useRef(null);
-          const streamRef = useRef(null); // Menyimpan referensi stream kamera
+          const streamRef = useRef(null);
           const [showConfirmDialog, setShowConfirmDialog] = useState(false);
           
-          // Memastikan link yang dimuat sesuai dengan kelas siswa
-          let activeUrl = settings.examUrl7;
-          if (student.kelas === '8') activeUrl = settings.examUrl8;
-          if (student.kelas === '9') activeUrl = settings.examUrl9;
+          // Mengambil URL soal yang berhasil dicocokkan dengan Token siswa tadi
+          const examUrlRef = useRef(student.activeUrl);
 
-          const examUrlRef = useRef(activeUrl);
-
-          // State untuk mengatur fitur "Drag" Kamera
+          // State untuk Drag Kamera
           const [camPos, setCamPos] = useState({ x: 0, y: 0 });
           const [isDraggingCam, setIsDraggingCam] = useState(false);
           const dragStart = useRef({ x: 0, y: 0 });
 
-          // Audio API untuk suara selesai
           const playFinishSound = () => {
             try {
               const AudioContext = window.AudioContext || window.webkitAudioContext;
               const ctx = new AudioContext();
-              
               const osc1 = ctx.createOscillator();
               const gain1 = ctx.createGain();
               osc1.connect(gain1);
@@ -384,7 +418,6 @@
               gain1.gain.setValueAtTime(0.1, ctx.currentTime);
               osc1.start(ctx.currentTime);
               osc1.stop(ctx.currentTime + 0.15);
-              
               const osc2 = ctx.createOscillator();
               const gain2 = ctx.createGain();
               osc2.connect(gain2);
@@ -400,51 +433,33 @@
 
           const handleFinish = () => {
             playFinishSound();
-            
-            // Matikan kamera seketika saat tombol selesai diklik
-            if (streamRef.current) {
-              streamRef.current.getTracks().forEach(track => track.stop());
-            }
-
-            if (document.exitFullscreen && document.fullscreenElement) {
-              document.exitFullscreen().catch(err => console.warn("Gagal keluar dari fullscreen:", err));
-            }
+            if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+            if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(err => console.warn(err));
             setView('finished');
           };
 
-          // Handler untuk memulai Drag Kamera
           const handleDragStart = (e) => {
             setIsDraggingCam(true);
             const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
             const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-            dragStart.current = {
-              x: clientX - camPos.x,
-              y: clientY - camPos.y
-            };
+            dragStart.current = { x: clientX - camPos.x, y: clientY - camPos.y };
           };
 
-          // Efek Global untuk Drag Move (Kamera)
           useEffect(() => {
             const handleDragMove = (e) => {
               if (!isDraggingCam) return;
-              e.preventDefault(); // Mencegah scrolling halaman saat dragging
+              e.preventDefault(); 
               const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
               const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-              setCamPos({
-                x: clientX - dragStart.current.x,
-                y: clientY - dragStart.current.y
-              });
+              setCamPos({ x: clientX - dragStart.current.x, y: clientY - dragStart.current.y });
             };
-
             const handleDragEnd = () => setIsDraggingCam(false);
-
             if (isDraggingCam) {
               window.addEventListener('mousemove', handleDragMove);
               window.addEventListener('mouseup', handleDragEnd);
               window.addEventListener('touchmove', handleDragMove, { passive: false });
               window.addEventListener('touchend', handleDragEnd);
             }
-
             return () => {
               window.removeEventListener('mousemove', handleDragMove);
               window.removeEventListener('mouseup', handleDragEnd);
@@ -453,33 +468,22 @@
             };
           }, [isDraggingCam]);
 
-          // Setup Kamera
           useEffect(() => {
             const startCamera = async () => {
               try {
                 streamRef.current = await navigator.mediaDevices.getUserMedia({ video: true });
-                if (videoRef.current) {
-                  videoRef.current.srcObject = streamRef.current;
-                }
+                if (videoRef.current) videoRef.current.srcObject = streamRef.current;
               } catch (err) {
-                console.warn("Gagal mengakses kamera:", err);
-                alert("Gagal mengakses kamera. Ujian tetap dilanjutkan tanpa pemantauan visual.");
+                console.warn(err);
               }
             };
             startCamera();
-
-            return () => {
-              if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-              }
-            };
+            return () => { if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop()); };
           }, []);
 
-          // Setup Timer
           useEffect(() => {
             if (examState.timeRemaining <= 0) {
-              handleFinish();
-              return;
+              handleFinish(); return;
             }
             const timerId = setInterval(() => {
               setExamState(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
@@ -487,7 +491,6 @@
             return () => clearInterval(timerId);
           }, [examState.timeRemaining]);
 
-          // Setup Keamanan
           useEffect(() => {
             const handleVisibilityChange = () => {
               if (document.hidden) {
@@ -495,40 +498,26 @@
                   if (prev.violations >= 3) return prev;
                   const newViolations = prev.violations + 1;
                   return {
-                    ...prev,
-                    violations: newViolations,
-                    isWarningOpen: true,
-                    warningMessage: newViolations >= 3 
-                      ? "PELANGGARAN MAKSIMAL (3 KALI)! Anda terdeteksi membuka aplikasi/tab lain (atau notifikasi mengalihkan fokus Anda). Ujian Anda dihentikan secara otomatis." 
-                      : `PERINGATAN ${newViolations} DARI 3! Anda terdeteksi berpindah aplikasi atau terganggu notifikasi.`
+                    ...prev, violations: newViolations, isWarningOpen: true,
+                    warningMessage: newViolations >= 3 ? "PELANGGARAN MAKSIMAL! Ujian dihentikan otomatis." : `PERINGATAN ${newViolations} DARI 3! Berpindah aplikasi.`
                   };
                 });
               }
             };
-
             const handleFullscreenChange = () => {
               if (!document.fullscreenElement) {
                 setExamState(prev => {
                   if (prev.violations >= 3) return prev;
                   const newViolations = prev.violations + 1;
                   return {
-                    ...prev,
-                    violations: newViolations,
-                    isWarningOpen: true,
-                    warningMessage: newViolations >= 3 
-                      ? "PELANGGARAN MAKSIMAL (3 KALI)! Anda keluar dari mode layar penuh. Ujian Anda dihentikan secara otomatis."
-                      : `PERINGATAN ${newViolations} DARI 3! Anda keluar dari mode layar penuh.`
+                    ...prev, violations: newViolations, isWarningOpen: true,
+                    warningMessage: newViolations >= 3 ? "PELANGGARAN MAKSIMAL! Ujian dihentikan otomatis." : `PERINGATAN ${newViolations} DARI 3! Keluar layar penuh.`
                   };
                 });
               }
             };
-
             const handleContextMenu = (e) => e.preventDefault();
-            const handleKeyDown = (e) => {
-              if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
-                e.preventDefault();
-              }
-            };
+            const handleKeyDown = (e) => { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) e.preventDefault(); };
 
             document.addEventListener("visibilitychange", handleVisibilityChange);
             document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -554,39 +543,21 @@
           const handleAcknowledgeWarning = async () => {
             setExamState(prev => ({ ...prev, isWarningOpen: false }));
             if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-              try {
-                await document.documentElement.requestFullscreen();
-              } catch(e) {
-                console.warn("Layar penuh kembali diblokir.");
-              }
+              try { await document.documentElement.requestFullscreen(); } catch(e) {}
             }
           };
 
           return (
             <div className="h-screen w-screen flex flex-col bg-slate-100 overflow-hidden relative select-none">
               
-              {/* MODAL KONFIRMASI SELESAI */}
               {showConfirmDialog && (
                 <div className="absolute inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
                   <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
                     <h3 className="text-xl font-bold text-slate-800 mb-4">Kumpulkan Ujian?</h3>
                     <p className="text-slate-600 mb-6">Apakah Anda yakin sudah selesai dan ingin mengumpulkan ujian?</p>
                     <div className="flex gap-3">
-                      <button
-                        onClick={() => setShowConfirmDialog(false)}
-                        className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded-xl transition-all"
-                      >
-                        Batal
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowConfirmDialog(false);
-                          handleFinish();
-                        }}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-xl transition-all"
-                      >
-                        Ya, Selesai
-                      </button>
+                      <button onClick={() => setShowConfirmDialog(false)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded-xl transition-all">Batal</button>
+                      <button onClick={() => { setShowConfirmDialog(false); handleFinish(); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-xl transition-all">Ya, Selesai</button>
                     </div>
                   </div>
                 </div>
@@ -596,23 +567,14 @@
                 <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4">
                   <div className="bg-white rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl transform scale-105 transition-transform">
                     <i className="fa-solid fa-triangle-exclamation text-red-600 text-6xl mx-auto mb-4 animate-bounce"></i>
-                    <h2 className="text-3xl font-bold text-slate-800 mb-2 mt-4">
-                      {examState.violations >= 3 ? "DISKUALIFIKASI!" : "PERINGATAN!"}
-                    </h2>
+                    <h2 className="text-3xl font-bold text-slate-800 mb-2 mt-4">{examState.violations >= 3 ? "DISKUALIFIKASI!" : "PERINGATAN!"}</h2>
                     <p className="text-lg text-slate-600 mb-6">{examState.warningMessage}</p>
                     <div className="bg-slate-100 p-4 rounded-lg mb-6 text-left">
                       <p className="text-sm font-semibold">Tercatat {examState.violations} pelanggaran.</p>
-                      <p className="text-xs text-slate-500">
-                        {examState.violations >= 3 
-                          ? "Batas maksimal pelanggaran telah tercapai." 
-                          : "Jika mencapai 3 pelanggaran, ujian akan dihentikan otomatis."}
-                      </p>
+                      <p className="text-xs text-slate-500">{examState.violations >= 3 ? "Batas maksimal pelanggaran telah tercapai." : "Jika mencapai 3 pelanggaran, ujian dihentikan."}</p>
                     </div>
-                    <button 
-                      onClick={examState.violations >= 3 ? handleFinish : handleAcknowledgeWarning}
-                      className={`w-full font-bold py-4 rounded-xl text-lg shadow-lg transition-colors ${examState.violations >= 3 ? 'bg-slate-800 hover:bg-slate-900 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-                    >
-                      {examState.violations >= 3 ? 'KUMPULKAN & AKHIRI UJIAN' : 'SAYA MENGERTI & KEMBALI UJIAN'}
+                    <button onClick={examState.violations >= 3 ? handleFinish : handleAcknowledgeWarning} className={`w-full font-bold py-4 rounded-xl text-lg shadow-lg transition-colors ${examState.violations >= 3 ? 'bg-slate-800 text-white' : 'bg-red-600 text-white'}`}>
+                      {examState.violations >= 3 ? 'KUMPULKAN & AKHIRI UJIAN' : 'SAYA MENGERTI'}
                     </button>
                   </div>
                 </div>
@@ -626,7 +588,7 @@
                   </div>
                   <div>
                     <h1 className="font-bold text-slate-800">{settings.examTitle}</h1>
-                    <p className="text-xs text-slate-500">{student.name} (Kelas {student.kelas})</p>
+                    <p className="text-xs text-slate-500">{student.name} <span className="font-mono bg-slate-200 px-1 rounded">(Token: {student.token.toUpperCase()})</span></p>
                   </div>
                 </div>
                 
@@ -636,44 +598,24 @@
                       Peringatan: {examState.violations}
                     </span>
                   )}
-                  <button 
-                    onClick={() => setShowConfirmDialog(true)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2"
-                  >
-                    <i className="fa-solid fa-circle-check"></i>
-                    SELESAI
+                  <button onClick={() => setShowConfirmDialog(true)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm flex items-center gap-2">
+                    <i className="fa-solid fa-circle-check"></i> SELESAI
                   </button>
                 </div>
               </header>
 
-              {/* PERBAIKAN: min-h-0 ditambahkan ke elemen flex untuk mengatasi bug ukuran di HP */}
               <main className="flex-1 relative w-full h-full bg-slate-200 p-2 min-h-0">
                 <div className="relative w-full h-full bg-white rounded-xl shadow-inner overflow-hidden">
-                  <iframe 
-                    src={examUrlRef.current} 
-                    className="absolute top-0 left-0 w-full h-full border-0"
-                    title="Form Ujian"
-                    /* Atribut sandbox dihapus sepenuhnya agar form tidak diblokir oleh browser HandPhone */
-                  ></iframe>
+                  <iframe src={examUrlRef.current} className="absolute top-0 left-0 w-full h-full border-0" title="Form Ujian"></iframe>
                 </div>
 
-                {/* MODUL KAMERA (Diperkecil dan Draggable) posisinya di kanan atas (bawah tombol Selesai) */}
                 <div 
                   className="absolute top-4 right-6 w-32 h-24 sm:w-36 sm:h-28 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-[100] flex items-center justify-center cursor-move"
-                  style={{ 
-                    transform: `translate(${camPos.x}px, ${camPos.y}px)`, 
-                    touchAction: 'none' // mencegah zoom/scroll hp secara tidak sengaja saat digeser
-                  }}
+                  style={{ transform: `translate(${camPos.x}px, ${camPos.y}px)`, touchAction: 'none' }}
                   onMouseDown={handleDragStart}
                   onTouchStart={handleDragStart}
                 >
-                   <video 
-                    ref={videoRef} 
-                    autoPlay 
-                    playsInline 
-                    muted 
-                    className="w-full h-full object-cover transform scale-x-[-1] pointer-events-none" 
-                  />
+                   <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1] pointer-events-none" />
                   {!videoRef.current && <i className="fa-solid fa-camera text-slate-500 text-2xl absolute pointer-events-none"></i>}
                   <div className="absolute bottom-1 right-1 bg-red-600 w-3 h-3 rounded-full animate-pulse border border-white pointer-events-none"></div>
                 </div>
@@ -708,7 +650,7 @@
 
               <button 
                 onClick={() => {
-                  setStudent({ name: '' });
+                  setStudent({ name: '', token: '', activeUrl: '' });
                   setView('home');
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
@@ -721,17 +663,16 @@
 
         // --- KOMPONEN UTAMA (APP) ---
         function App() {
-          const [view, setView] = useState('home'); // 'home', 'admin', 'student_login', 'exam', 'finished'
+          const [view, setView] = useState('home'); 
           
           const [settings, setSettings] = useState({
             examTitle: 'Ujian Akhir Semester',
-            examUrl7: '',
-            examUrl8: '',
-            examUrl9: '',
             duration: 60,
+            tokens: [] // Array untuk menyimpan daftar Token & Link
           });
           
-          const [student, setStudent] = useState({ name: '', kelas: '' });
+          // State murid ditambahkan 'activeUrl' untuk menyimpan link soal yg berhasil didapat dari token
+          const [student, setStudent] = useState({ name: '', token: '', activeUrl: '' });
           
           const [examState, setExamState] = useState({
             timeRemaining: 0,
@@ -740,7 +681,7 @@
             warningMessage: ''
           });
 
-          // Mengambil pengaturan dari Spreadsheet saat aplikasi dimuat pertama kali
+          // Mengambil pengaturan (termasuk JSON Tokens) dari Spreadsheet saat aplikasi dimuat
           useEffect(() => {
             const loadSettings = async () => {
               if (GOOGLE_SCRIPT_URL !== '') {
@@ -749,21 +690,26 @@
                   const data = await response.json();
                   
                   if (data && data.examTitle) {
+                    let parsedTokens = [];
+                    try {
+                      // Cek apakah data valid dan bukan "undefined" sebelum di-parse
+                      if (data.tokensData && data.tokensData !== "undefined" && data.tokensData !== "null") {
+                        parsedTokens = typeof data.tokensData === 'string' ? JSON.parse(data.tokensData) : data.tokensData;
+                      }
+                    } catch (e) { console.error("Gagal parsing token", e); }
+
                     setSettings({
                       examTitle: data.examTitle,
-                      examUrl7: data.examUrl7 || '',
-                      examUrl8: data.examUrl8 || '',
-                      examUrl9: data.examUrl9 || '',
-                      duration: parseInt(data.duration) || 60
+                      duration: parseInt(data.duration) || 60,
+                      tokens: Array.isArray(parsedTokens) ? parsedTokens : []
                     });
-                    return; // Jika berhasil, berhenti di sini
+                    return; 
                   }
                 } catch (error) {
                   console.warn("Gagal membaca dari Spreadsheet. Menggunakan pengaturan lokal...", error);
                 }
               }
               
-              // Jika gagal terhubung ke web app atau URL masih kosong, pakai memori lokal
               const savedSettings = localStorage.getItem('exambro_settings');
               if (savedSettings) {
                 setSettings(JSON.parse(savedSettings));
@@ -773,18 +719,12 @@
             loadSettings();
           }, []);
 
-          // Mengatur rute perpindahan layar
           switch (view) {
-            case 'admin': 
-              return <AdminView settings={settings} setSettings={setSettings} setView={setView} />;
-            case 'student_login': 
-              return <StudentLoginView settings={settings} student={student} setStudent={setStudent} setExamState={setExamState} setView={setView} />;
-            case 'exam': 
-              return <ExamView settings={settings} student={student} examState={examState} setExamState={setExamState} setView={setView} />;
-            case 'finished': 
-              return <FinishedView student={student} examState={examState} setStudent={setStudent} setView={setView} />;
-            default: 
-              return <HomeView setView={setView} />;
+            case 'admin': return <AdminView settings={settings} setSettings={setSettings} setView={setView} />;
+            case 'student_login': return <StudentLoginView settings={settings} student={student} setStudent={setStudent} setExamState={setExamState} setView={setView} />;
+            case 'exam': return <ExamView settings={settings} student={student} examState={examState} setExamState={setExamState} setView={setView} />;
+            case 'finished': return <FinishedView student={student} examState={examState} setStudent={setStudent} setView={setView} />;
+            default: return <HomeView setView={setView} />;
           }
         }
 
