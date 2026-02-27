@@ -496,13 +496,14 @@
                 </div>
               </header>
 
-              <main className="flex-1 relative w-full h-full bg-slate-200 p-2">
-                <div className="w-full h-full bg-white rounded-xl shadow-inner overflow-hidden">
+              {/* PERBAIKAN: min-h-0 ditambahkan ke elemen flex untuk mengatasi bug ukuran di HP */}
+              <main className="flex-1 relative w-full h-full bg-slate-200 p-2 min-h-0">
+                <div className="relative w-full h-full bg-white rounded-xl shadow-inner overflow-hidden">
                   <iframe 
                     src={examUrlRef.current} 
-                    className="w-full h-full border-0"
+                    className="absolute top-0 left-0 w-full h-full border-0"
                     title="Form Ujian"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    /* Atribut sandbox dihapus sepenuhnya agar form tidak diblokir oleh browser HandPhone */
                   ></iframe>
                 </div>
 
