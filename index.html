@@ -303,6 +303,11 @@
           // Memastikan link tidak dimuat ulang jika setting berubah secara tidak sengaja
           const examUrlRef = useRef(settings.examUrl);
 
+          // State untuk mengatur fitur "Drag" Kamera
+          const [camPos, setCamPos] = useState({ x: 0, y: 0 });
+          const [isDraggingCam, setIsDraggingCam] = useState(false);
+          const dragStart = useRef({ x: 0, y: 0 });
+
           // Audio API untuk suara selesai
           const playFinishSound = () => {
             try {
@@ -344,6 +349,47 @@
             }
             setView('finished');
           };
+
+          // Handler untuk memulai Drag Kamera
+          const handleDragStart = (e) => {
+            setIsDraggingCam(true);
+            const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            dragStart.current = {
+              x: clientX - camPos.x,
+              y: clientY - camPos.y
+            };
+          };
+
+          // Efek Global untuk Drag Move (Kamera)
+          useEffect(() => {
+            const handleDragMove = (e) => {
+              if (!isDraggingCam) return;
+              e.preventDefault(); // Mencegah scrolling halaman saat dragging
+              const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+              const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+              setCamPos({
+                x: clientX - dragStart.current.x,
+                y: clientY - dragStart.current.y
+              });
+            };
+
+            const handleDragEnd = () => setIsDraggingCam(false);
+
+            if (isDraggingCam) {
+              window.addEventListener('mousemove', handleDragMove);
+              window.addEventListener('mouseup', handleDragEnd);
+              window.addEventListener('touchmove', handleDragMove, { passive: false });
+              window.addEventListener('touchend', handleDragEnd);
+            }
+
+            return () => {
+              window.removeEventListener('mousemove', handleDragMove);
+              window.removeEventListener('mouseup', handleDragEnd);
+              window.removeEventListener('touchmove', handleDragMove);
+              window.removeEventListener('touchend', handleDragEnd);
+            };
+          }, [isDraggingCam]);
 
           // Setup Kamera
           useEffect(() => {
@@ -549,16 +595,25 @@
                   ></iframe>
                 </div>
 
-                <div className="absolute bottom-6 right-6 w-48 h-36 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-20 flex items-center justify-center">
+                {/* MODUL KAMERA (Diperkecil dan Draggable) */}
+                <div 
+                  className="absolute bottom-6 right-6 w-32 h-24 sm:w-36 sm:h-28 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-[100] flex items-center justify-center cursor-move"
+                  style={{ 
+                    transform: `translate(${camPos.x}px, ${camPos.y}px)`, 
+                    touchAction: 'none' // mencegah zoom/scroll hp secara tidak sengaja saat digeser
+                  }}
+                  onMouseDown={handleDragStart}
+                  onTouchStart={handleDragStart}
+                >
                    <video 
                     ref={videoRef} 
                     autoPlay 
                     playsInline 
                     muted 
-                    className="w-full h-full object-cover transform scale-x-[-1]" 
+                    className="w-full h-full object-cover transform scale-x-[-1] pointer-events-none" 
                   />
-                  {!videoRef.current && <i className="fa-solid fa-camera text-slate-500 text-3xl absolute"></i>}
-                  <div className="absolute bottom-1 right-1 bg-red-600 w-3 h-3 rounded-full animate-pulse border border-white"></div>
+                  {!videoRef.current && <i className="fa-solid fa-camera text-slate-500 text-2xl absolute pointer-events-none"></i>}
+                  <div className="absolute bottom-1 right-1 bg-red-600 w-3 h-3 rounded-full animate-pulse border border-white pointer-events-none"></div>
                 </div>
               </main>
             </div>
