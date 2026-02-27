@@ -24,6 +24,11 @@
 
     <!-- Kode Aplikasi -->
     <script type="text/babel">
+        // ========================================================
+        // TARUH LINK WEB APP GOOGLE SCRIPT ANDA DI BAWAH INI
+        // ========================================================
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxmQL1jc8li6--zTGFYNalcj16sy5bd2eRVe4N-iN4VLWm5cF4YogPxW2cVlj-sytST/exec';
+
         const { useState, useEffect, useRef } = React;
 
         // --- KOMPONEN: LAYAR BERANDA ---
@@ -58,9 +63,10 @@
         );
 
         // --- KOMPONEN: PANEL ADMIN ---
-        const AdminView = ({ settings, setSettings, setView, db, user, appId, firebaseError }) => {
+        const AdminView = ({ settings, setSettings, setView }) => {
           const [tempSettings, setTempSettings] = useState(settings);
           const [showSuccess, setShowSuccess] = useState(false);
+          const [isSaving, setIsSaving] = useState(false);
 
           const handleSave = async () => {
             // Pastikan URL google form diubah menjadi embedded agar tampil rapi
@@ -70,32 +76,41 @@
             }
             
             const newSettings = { ...tempSettings, examUrl: finalUrl };
-            setSettings(newSettings); // Update tampilan sementara
+            setSettings(newSettings);
+            localStorage.setItem('exambro_settings', JSON.stringify(newSettings));
             
-            // Simpan ke Database Cloud jika tersedia
-            if (db && user) {
-                try {
-                    const dynamicImport = new Function('specifier', 'return import(specifier)');
-                    const { doc, setDoc } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'exam_settings', 'global');
-                    await setDoc(docRef, newSettings);
-                    
-                    setShowSuccess(true);
-                    setTimeout(() => {
-                        setShowSuccess(false);
-                        setView('home');
-                    }, 1500);
-                } catch (err) {
-                    console.error("Error saving:", err);
-                    alert("Gagal menyimpan ke database cloud.");
-                }
-            } else {
-                alert("Database tidak terhubung (Mode Vercel). Pengaturan hanya tersimpan sementara.");
+            // Logika Penyimpanan ke Google Spreadsheet
+            if (GOOGLE_SCRIPT_URL !== '') {
+              setIsSaving(true);
+              try {
+                const formData = new URLSearchParams();
+                formData.append('examTitle', newSettings.examTitle);
+                formData.append('examUrl', newSettings.examUrl);
+                formData.append('duration', newSettings.duration);
+
+                await fetch(GOOGLE_SCRIPT_URL, {
+                  method: 'POST',
+                  body: formData,
+                });
+                
                 setShowSuccess(true);
-                setTimeout(() => {
-                    setShowSuccess(false);
-                    setView('home');
-                }, 1500);
+              } catch (err) {
+                console.warn("Gagal terhubung ke Google Script:", err);
+                alert("Pengaturan tersimpan di memori perangkat, tetapi gagal terkirim ke Spreadsheet.");
+                setShowSuccess(true);
+              }
+              setIsSaving(false);
+              setTimeout(() => {
+                setShowSuccess(false);
+                setView('home');
+              }, 1500);
+            } else {
+              // Jika URL Script belum diisi, simpan ke lokal saja seperti biasa
+              setShowSuccess(true);
+              setTimeout(() => {
+                setShowSuccess(false);
+                setView('home');
+              }, 1500);
             }
           };
 
@@ -106,11 +121,11 @@
                   <i className="fa-solid fa-gear text-slate-700 text-3xl"></i>
                   <h2 className="text-2xl font-bold text-slate-800">Pengaturan Ujian (Admin)</h2>
                 </div>
-
-                {firebaseError && (
-                  <div className="bg-red-100 text-red-700 p-4 rounded-lg text-sm mb-6 border border-red-200">
-                    <i className="fa-solid fa-triangle-exclamation mr-2"></i>
-                    <strong>Peringatan Mode Vercel:</strong> Database Cloud terputus. Jika Anda sedang menghosting di Vercel, abaikan panel admin ini dan aturlah <b>Judul, Durasi, dan Link</b> secara langsung di dalam teks kode <code>index.html</code> Anda sebelum di-upload.
+                
+                {GOOGLE_SCRIPT_URL === '' && (
+                  <div className="bg-yellow-100 text-yellow-800 p-3 rounded-lg text-sm mb-5 border border-yellow-200">
+                    <i className="fa-solid fa-circle-info mr-2"></i>
+                    <strong>Mode Offline:</strong> Anda belum memasukkan URL Web App Google Script ke dalam kode HTML. Pengaturan hanya akan tersimpan di laptop ini.
                   </div>
                 )}
 
@@ -152,9 +167,10 @@
                   <div className="pt-4 flex gap-3">
                     <button 
                       onClick={handleSave}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+                      disabled={isSaving}
+                      className={`flex-1 ${isSaving ? 'bg-slate-500' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold py-3 px-6 rounded-xl transition-all`}
                     >
-                      {showSuccess ? 'Tersimpan!' : 'Simpan Pengaturan'}
+                      {isSaving ? (<span><i className="fa-solid fa-spinner fa-spin mr-2"></i>Menyimpan...</span>) : showSuccess ? 'Tersimpan!' : 'Simpan Pengaturan'}
                     </button>
                     <button 
                       onClick={() => setView('home')}
@@ -605,93 +621,41 @@
             warningMessage: ''
           });
 
-          // State untuk Firebase Database Cloud
-          const [db, setDb] = useState(null);
-          const [user, setUser] = useState(null);
-          const [appId, setAppId] = useState('default-app-id');
-          const [firebaseError, setFirebaseError] = useState(false);
-
-          // Inisialisasi Firebase Database
+          // Mengambil pengaturan dari Spreadsheet saat aplikasi dimuat pertama kali
           useEffect(() => {
-            const initFirebase = async () => {
+            const loadSettings = async () => {
+              if (GOOGLE_SCRIPT_URL !== '') {
                 try {
-                    if (typeof __firebase_config === 'undefined') {
-                        setFirebaseError(true); // Gagal memuat database (Mode Vercel)
-                        return;
-                    }
-                    
-                    const dynamicImport = new Function('specifier', 'return import(specifier)');
-                    const { initializeApp } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
-                    const { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-                    const { getFirestore } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-
-                    const config = JSON.parse(__firebase_config);
-                    const app = initializeApp(config);
-                    const auth = getAuth(app);
-                    const firestore = getFirestore(app);
-                    
-                    setDb(firestore);
-                    if (typeof __app_id !== 'undefined') {
-                        setAppId(__app_id);
-                    }
-
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-
-                    onAuthStateChanged(auth, (u) => {
-                        setUser(u);
+                  const response = await fetch(GOOGLE_SCRIPT_URL);
+                  const data = await response.json();
+                  
+                  if (data && data.examTitle) {
+                    setSettings({
+                      examTitle: data.examTitle,
+                      examUrl: data.examUrl,
+                      duration: parseInt(data.duration) || 60
                     });
-                } catch (err) {
-                    console.error("Firebase Setup Error", err);
-                    setFirebaseError(true);
+                    return; // Jika berhasil, berhenti di sini
+                  }
+                } catch (error) {
+                  console.warn("Gagal membaca dari Spreadsheet. Menggunakan pengaturan lokal...", error);
                 }
+              }
+              
+              // Jika gagal terhubung ke web app atau URL masih kosong, pakai memori lokal
+              const savedSettings = localStorage.getItem('exambro_settings');
+              if (savedSettings) {
+                setSettings(JSON.parse(savedSettings));
+              }
             };
-            initFirebase();
-          }, []);
-
-          // Mengambil pengaturan dari Database secara Realtime
-          useEffect(() => {
-            if (!user || !db) return;
             
-            let unsubscribe = () => {};
-            const fetchSettings = async () => {
-                try {
-                    const dynamicImport = new Function('specifier', 'return import(specifier)');
-                    const { collection, onSnapshot } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-                    const settingsCol = collection(db, 'artifacts', appId, 'public', 'data', 'exam_settings');
-                    
-                    unsubscribe = onSnapshot(settingsCol, (snapshot) => {
-                        let loadedSettings = null;
-                        snapshot.forEach(doc => {
-                            if (doc.id === 'global') loadedSettings = doc.data();
-                        });
-                        
-                        if (loadedSettings) {
-                            setSettings({
-                                examTitle: loadedSettings.examTitle || 'Ujian Akhir Semester',
-                                examUrl: loadedSettings.examUrl || 'https://docs.google.com/forms/d/e/1FAIpQLScwIIGkC2096t6P_2i1c8R4eP_E--9T_99_e_Q/viewform?embedded=true',
-                                duration: loadedSettings.duration || 60
-                            });
-                        }
-                    }, (error) => {
-                        console.error("Gagal memuat pengaturan database:", error);
-                    });
-                } catch (err) {
-                    console.error("Error setting up snapshot:", err);
-                }
-            };
-            fetchSettings();
-
-            return () => unsubscribe();
-          }, [user, db, appId]);
+            loadSettings();
+          }, []);
 
           // Mengatur rute perpindahan layar
           switch (view) {
             case 'admin': 
-              return <AdminView settings={settings} setSettings={setSettings} setView={setView} db={db} user={user} appId={appId} firebaseError={firebaseError} />;
+              return <AdminView settings={settings} setSettings={setSettings} setView={setView} />;
             case 'student_login': 
               return <StudentLoginView settings={settings} student={student} setStudent={setStudent} setExamState={setExamState} setView={setView} />;
             case 'exam': 
