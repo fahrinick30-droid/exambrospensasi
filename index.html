@@ -58,11 +58,11 @@
         );
 
         // --- KOMPONEN: PANEL ADMIN ---
-        const AdminView = ({ settings, setSettings, setView }) => {
+        const AdminView = ({ settings, setSettings, setView, db, user, appId, firebaseError }) => {
           const [tempSettings, setTempSettings] = useState(settings);
           const [showSuccess, setShowSuccess] = useState(false);
 
-          const handleSave = () => {
+          const handleSave = async () => {
             // Pastikan URL google form diubah menjadi embedded agar tampil rapi
             let finalUrl = tempSettings.examUrl;
             if (finalUrl.includes('docs.google.com/forms') && !finalUrl.includes('embedded=true')) {
@@ -70,14 +70,33 @@
             }
             
             const newSettings = { ...tempSettings, examUrl: finalUrl };
-            setSettings(newSettings);
-            localStorage.setItem('exambro_settings', JSON.stringify(newSettings));
+            setSettings(newSettings); // Update tampilan sementara
             
-            setShowSuccess(true);
-            setTimeout(() => {
-              setShowSuccess(false);
-              setView('home');
-            }, 1500);
+            // Simpan ke Database Cloud jika tersedia
+            if (db && user) {
+                try {
+                    const dynamicImport = new Function('specifier', 'return import(specifier)');
+                    const { doc, setDoc } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'exam_settings', 'global');
+                    await setDoc(docRef, newSettings);
+                    
+                    setShowSuccess(true);
+                    setTimeout(() => {
+                        setShowSuccess(false);
+                        setView('home');
+                    }, 1500);
+                } catch (err) {
+                    console.error("Error saving:", err);
+                    alert("Gagal menyimpan ke database cloud.");
+                }
+            } else {
+                alert("Database tidak terhubung (Mode Vercel). Pengaturan hanya tersimpan sementara.");
+                setShowSuccess(true);
+                setTimeout(() => {
+                    setShowSuccess(false);
+                    setView('home');
+                }, 1500);
+            }
           };
 
           return (
@@ -87,6 +106,13 @@
                   <i className="fa-solid fa-gear text-slate-700 text-3xl"></i>
                   <h2 className="text-2xl font-bold text-slate-800">Pengaturan Ujian (Admin)</h2>
                 </div>
+
+                {firebaseError && (
+                  <div className="bg-red-100 text-red-700 p-4 rounded-lg text-sm mb-6 border border-red-200">
+                    <i className="fa-solid fa-triangle-exclamation mr-2"></i>
+                    <strong>Peringatan Mode Vercel:</strong> Database Cloud terputus. Jika Anda sedang menghosting di Vercel, abaikan panel admin ini dan aturlah <b>Judul, Durasi, dan Link</b> secara langsung di dalam teks kode <code>index.html</code> Anda sebelum di-upload.
+                  </div>
+                )}
 
                 <div className="space-y-5">
                   <div>
@@ -579,18 +605,93 @@
             warningMessage: ''
           });
 
-          // Load pengaturan admin dari local storage
+          // State untuk Firebase Database Cloud
+          const [db, setDb] = useState(null);
+          const [user, setUser] = useState(null);
+          const [appId, setAppId] = useState('default-app-id');
+          const [firebaseError, setFirebaseError] = useState(false);
+
+          // Inisialisasi Firebase Database
           useEffect(() => {
-            const savedSettings = localStorage.getItem('exambro_settings');
-            if (savedSettings) {
-              setSettings(JSON.parse(savedSettings));
-            }
+            const initFirebase = async () => {
+                try {
+                    if (typeof __firebase_config === 'undefined') {
+                        setFirebaseError(true); // Gagal memuat database (Mode Vercel)
+                        return;
+                    }
+                    
+                    const dynamicImport = new Function('specifier', 'return import(specifier)');
+                    const { initializeApp } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+                    const { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                    const { getFirestore } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+                    const config = JSON.parse(__firebase_config);
+                    const app = initializeApp(config);
+                    const auth = getAuth(app);
+                    const firestore = getFirestore(app);
+                    
+                    setDb(firestore);
+                    if (typeof __app_id !== 'undefined') {
+                        setAppId(__app_id);
+                    }
+
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    onAuthStateChanged(auth, (u) => {
+                        setUser(u);
+                    });
+                } catch (err) {
+                    console.error("Firebase Setup Error", err);
+                    setFirebaseError(true);
+                }
+            };
+            initFirebase();
           }, []);
+
+          // Mengambil pengaturan dari Database secara Realtime
+          useEffect(() => {
+            if (!user || !db) return;
+            
+            let unsubscribe = () => {};
+            const fetchSettings = async () => {
+                try {
+                    const dynamicImport = new Function('specifier', 'return import(specifier)');
+                    const { collection, onSnapshot } = await dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                    const settingsCol = collection(db, 'artifacts', appId, 'public', 'data', 'exam_settings');
+                    
+                    unsubscribe = onSnapshot(settingsCol, (snapshot) => {
+                        let loadedSettings = null;
+                        snapshot.forEach(doc => {
+                            if (doc.id === 'global') loadedSettings = doc.data();
+                        });
+                        
+                        if (loadedSettings) {
+                            setSettings({
+                                examTitle: loadedSettings.examTitle || 'Ujian Akhir Semester',
+                                examUrl: loadedSettings.examUrl || 'https://docs.google.com/forms/d/e/1FAIpQLScwIIGkC2096t6P_2i1c8R4eP_E--9T_99_e_Q/viewform?embedded=true',
+                                duration: loadedSettings.duration || 60
+                            });
+                        }
+                    }, (error) => {
+                        console.error("Gagal memuat pengaturan database:", error);
+                    });
+                } catch (err) {
+                    console.error("Error setting up snapshot:", err);
+                }
+            };
+            fetchSettings();
+
+            return () => unsubscribe();
+          }, [user, db, appId]);
 
           // Mengatur rute perpindahan layar
           switch (view) {
             case 'admin': 
-              return <AdminView settings={settings} setSettings={setSettings} setView={setView} />;
+              return <AdminView settings={settings} setSettings={setSettings} setView={setView} db={db} user={user} appId={appId} firebaseError={firebaseError} />;
             case 'student_login': 
               return <StudentLoginView settings={settings} student={student} setStudent={setStudent} setExamState={setExamState} setView={setView} />;
             case 'exam': 
