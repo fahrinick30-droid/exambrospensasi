@@ -216,9 +216,9 @@
                   
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6 text-sm text-yellow-800">
                     <p className="font-bold flex items-center gap-2 mb-1">
-                      <i className="fa-solid fa-shield-halved"></i> Perhatian!
+                      <i className="fa-solid fa-shield-halved"></i> Perhatian Penting!
                     </p>
-                    <ul className="list-disc pl-5 space-y-1">
+                    <ul className="list-disc pl-5 space-y-2">
                       <li>Ujian akan mengunci layar secara otomatis.</li>
                       <li>Kamera akan diaktifkan untuk pemantauan.</li>
                       <li>Membuka tab/aplikasi lain akan dicatat sebagai pelanggaran.</li>
@@ -349,8 +349,8 @@
                     violations: newViolations,
                     isWarningOpen: true,
                     warningMessage: newViolations >= 3 
-                      ? "PELANGGARAN MAKSIMAL (3 KALI)! Anda terdeteksi membuka aplikasi/tab lain. Ujian Anda dihentikan secara otomatis." 
-                      : `PERINGATAN ${newViolations} DARI 3! Anda terdeteksi membuka aplikasi/tab lain.`
+                      ? "PELANGGARAN MAKSIMAL (3 KALI)! Anda terdeteksi membuka aplikasi/tab lain (atau notifikasi mengalihkan fokus Anda). Ujian Anda dihentikan secara otomatis." 
+                      : `PERINGATAN ${newViolations} DARI 3! Anda terdeteksi berpindah aplikasi atau terganggu notifikasi.`
                   };
                 });
               }
