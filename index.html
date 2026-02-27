@@ -26,15 +26,498 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        // --- KOMPONEN: LAYAR BERANDA ---
+        const HomeView = ({ setView }) => (
+          <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center space-y-8">
+              <div>
+                <i className="fa-solid fa-desktop text-blue-600 text-6xl mx-auto mb-4"></i>
+                <h1 className="text-3xl font-bold text-slate-800 mt-4">CBT Exambro</h1>
+                <p className="text-slate-500 mt-2">Sistem Ujian Aman Berbasis Web</p>
+              </div>
+              
+              <div className="space-y-4">
+                <button 
+                  onClick={() => setView('student_login')}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
+                >
+                  <i className="fa-solid fa-play"></i>
+                  Mulai Ujian (Siswa)
+                </button>
+                
+                <button 
+                  onClick={() => setView('admin')}
+                  className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
+                >
+                  <i className="fa-solid fa-gear"></i>
+                  Panel Admin
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+        // --- KOMPONEN: PANEL ADMIN ---
+        const AdminView = ({ settings, setSettings, setView }) => {
+          const [tempSettings, setTempSettings] = useState(settings);
+
+          const handleSave = () => {
+            // Pastikan URL google form diubah menjadi embedded agar tampil rapi
+            let finalUrl = tempSettings.examUrl;
+            if (finalUrl.includes('docs.google.com/forms') && !finalUrl.includes('embedded=true')) {
+              finalUrl = finalUrl.includes('?') ? finalUrl + '&embedded=true' : finalUrl + '?embedded=true';
+            }
+            
+            const newSettings = { ...tempSettings, examUrl: finalUrl };
+            setSettings(newSettings);
+            localStorage.setItem('exambro_settings', JSON.stringify(newSettings));
+            alert('Pengaturan berhasil disimpan!');
+            setView('home');
+          };
+
+          return (
+            <div className="min-h-screen bg-slate-100 p-4 md:p-8">
+              <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
+                <div className="flex items-center gap-3 mb-6 border-b pb-4">
+                  <i className="fa-solid fa-gear text-slate-700 text-3xl"></i>
+                  <h2 className="text-2xl font-bold text-slate-800">Pengaturan Ujian (Admin)</h2>
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Judul Ujian</label>
+                    <input 
+                      type="text" 
+                      className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={tempSettings.examTitle}
+                      onChange={(e) => setTempSettings({...tempSettings, examTitle: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Link Soal (Rekomendasi: Google Forms)</label>
+                    <input 
+                      type="text" 
+                      className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={tempSettings.examUrl}
+                      onChange={(e) => setTempSettings({...tempSettings, examUrl: e.target.value})}
+                      placeholder="https://docs.google.com/forms/d/e/.../viewform"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Gunakan Google Forms agar jawaban otomatis tersimpan rapi di Google Spreadsheet (Sheets).
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Durasi Ujian (Menit)</label>
+                    <input 
+                      type="number" 
+                      className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={tempSettings.duration}
+                      onChange={(e) => setTempSettings({...tempSettings, duration: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+
+                  <div className="pt-4 flex gap-3">
+                    <button 
+                      onClick={handleSave}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+                    >
+                      Simpan Pengaturan
+                    </button>
+                    <button 
+                      onClick={() => setView('home')}
+                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-xl transition-all"
+                    >
+                      Kembali
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        // --- KOMPONEN: LOGIN SISWA ---
+        const StudentLoginView = ({ settings, student, setStudent, setExamState, setView }) => {
+          const startExam = async () => {
+            if (!student.name || !student.id) {
+              alert("Harap isi Nama dan Nomor Peserta!");
+              return;
+            }
+            
+            // Meminta akses Fullscreen
+            try {
+              if (document.documentElement.requestFullscreen) {
+                await document.documentElement.requestFullscreen();
+              }
+            } catch (err) {
+              // Mengganti console.error dengan console.warn agar tidak memunculkan popup merah di lingkungan iframe/preview
+              console.warn("Fullscreen API diblokir oleh lingkungan saat ini (misal: di dalam iframe). Aplikasi akan tetap dilanjutkan.");
+            }
+
+            setExamState({
+              timeRemaining: settings.duration * 60,
+              violations: 0,
+              isWarningOpen: false,
+              warningMessage: ''
+            });
+            setView('exam');
+          };
+
+          return (
+            <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+                <div className="text-center mb-8">
+                  <h2 className="text-2xl font-bold text-slate-800">Masuk Ujian</h2>
+                  <p className="text-slate-500">{settings.examTitle}</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap</label>
+                    <input 
+                      type="text" 
+                      className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500"
+                      value={student.name}
+                      onChange={(e) => setStudent({...student, name: e.target.value})}
+                      placeholder="Masukkan nama Anda"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nomor Peserta / NIS</label>
+                    <input 
+                      type="text" 
+                      className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500"
+                      value={student.id}
+                      onChange={(e) => setStudent({...student, id: e.target.value})}
+                      placeholder="Masukkan nomor peserta"
+                    />
+                  </div>
+                  
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6 text-sm text-yellow-800">
+                    <p className="font-bold flex items-center gap-2 mb-1">
+                      <i className="fa-solid fa-shield-halved"></i> Perhatian!
+                    </p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Ujian akan mengunci layar secara otomatis.</li>
+                      <li>Kamera akan diaktifkan untuk pemantauan.</li>
+                      <li>Membuka tab/aplikasi lain akan dicatat sebagai pelanggaran.</li>
+                    </ul>
+                  </div>
+
+                  <div className="pt-4 flex gap-3">
+                    <button 
+                      onClick={startExam}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
+                    >
+                      <i className="fa-solid fa-play"></i>
+                      Mulai Kerjakan
+                    </button>
+                    <button 
+                      onClick={() => setView('home')}
+                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-3 rounded-xl transition-all px-4"
+                      title="Batal"
+                    >
+                      <i className="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        // --- KOMPONEN: INTERFACE UJIAN UTAMA ---
+        const ExamView = ({ settings, student, examState, setExamState, setView }) => {
+          const videoRef = useRef(null);
+          
+          // Memastikan link tidak dimuat ulang jika setting berubah secara tidak sengaja
+          const examUrlRef = useRef(settings.examUrl);
+
+          // Audio API untuk suara selesai
+          const playFinishSound = () => {
+            try {
+              const AudioContext = window.AudioContext || window.webkitAudioContext;
+              const ctx = new AudioContext();
+              
+              const osc1 = ctx.createOscillator();
+              const gain1 = ctx.createGain();
+              osc1.connect(gain1);
+              gain1.connect(ctx.destination);
+              osc1.frequency.value = 523.25; 
+              gain1.gain.setValueAtTime(0.1, ctx.currentTime);
+              osc1.start(ctx.currentTime);
+              osc1.stop(ctx.currentTime + 0.15);
+              
+              const osc2 = ctx.createOscillator();
+              const gain2 = ctx.createGain();
+              osc2.connect(gain2);
+              gain2.connect(ctx.destination);
+              osc2.frequency.value = 659.25; 
+              gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.2);
+              osc2.start(ctx.currentTime + 0.2);
+              osc2.stop(ctx.currentTime + 0.5);
+            } catch (e) {
+              console.log("Web Audio API tidak didukung browser ini.");
+            }
+          };
+
+          const handleFinish = () => {
+            playFinishSound();
+            if (document.exitFullscreen && document.fullscreenElement) {
+              document.exitFullscreen().catch(err => console.warn("Gagal keluar dari fullscreen:", err));
+            }
+            setView('finished');
+          };
+
+          // Setup Kamera
+          useEffect(() => {
+            let stream = null;
+            const startCamera = async () => {
+              try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                if (videoRef.current) {
+                  videoRef.current.srcObject = stream;
+                }
+              } catch (err) {
+                console.warn("Gagal mengakses kamera:", err);
+                alert("Gagal mengakses kamera. Ujian tetap dilanjutkan tanpa pemantauan visual.");
+              }
+            };
+            startCamera();
+
+            return () => {
+              if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+              }
+            };
+          }, []);
+
+          // Setup Timer
+          useEffect(() => {
+            if (examState.timeRemaining <= 0) {
+              handleFinish();
+              return;
+            }
+            const timerId = setInterval(() => {
+              setExamState(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
+            }, 1000);
+            return () => clearInterval(timerId);
+          }, [examState.timeRemaining]);
+
+          // Setup Keamanan
+          useEffect(() => {
+            const handleVisibilityChange = () => {
+              if (document.hidden) {
+                setExamState(prev => {
+                  if (prev.violations >= 3) return prev;
+                  const newViolations = prev.violations + 1;
+                  return {
+                    ...prev,
+                    violations: newViolations,
+                    isWarningOpen: true,
+                    warningMessage: newViolations >= 3 
+                      ? "PELANGGARAN MAKSIMAL (3 KALI)! Anda terdeteksi membuka aplikasi/tab lain. Ujian Anda dihentikan secara otomatis." 
+                      : `PERINGATAN ${newViolations} DARI 3! Anda terdeteksi membuka aplikasi/tab lain.`
+                  };
+                });
+              }
+            };
+
+            const handleFullscreenChange = () => {
+              if (!document.fullscreenElement) {
+                setExamState(prev => {
+                  if (prev.violations >= 3) return prev;
+                  const newViolations = prev.violations + 1;
+                  return {
+                    ...prev,
+                    violations: newViolations,
+                    isWarningOpen: true,
+                    warningMessage: newViolations >= 3 
+                      ? "PELANGGARAN MAKSIMAL (3 KALI)! Anda keluar dari mode layar penuh. Ujian Anda dihentikan secara otomatis."
+                      : `PERINGATAN ${newViolations} DARI 3! Anda keluar dari mode layar penuh.`
+                  };
+                });
+              }
+            };
+
+            const handleContextMenu = (e) => e.preventDefault();
+            const handleKeyDown = (e) => {
+              if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+                e.preventDefault();
+              }
+            };
+
+            document.addEventListener("visibilitychange", handleVisibilityChange);
+            document.addEventListener("fullscreenchange", handleFullscreenChange);
+            document.addEventListener("contextmenu", handleContextMenu);
+            window.addEventListener("keydown", handleKeyDown);
+
+            return () => {
+              document.removeEventListener("visibilitychange", handleVisibilityChange);
+              document.removeEventListener("fullscreenchange", handleFullscreenChange);
+              document.removeEventListener("contextmenu", handleContextMenu);
+              window.removeEventListener("keydown", handleKeyDown);
+            };
+          }, []);
+
+          const formatTime = (seconds) => {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+          };
+
+          const handleAcknowledgeWarning = async () => {
+            setExamState(prev => ({ ...prev, isWarningOpen: false }));
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+              try {
+                await document.documentElement.requestFullscreen();
+              } catch(e) {
+                console.warn("Layar penuh kembali diblokir.");
+              }
+            }
+          };
+
+          return (
+            <div className="h-screen w-screen flex flex-col bg-slate-100 overflow-hidden relative select-none">
+              
+              {examState.isWarningOpen && (
+                <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl transform scale-105 transition-transform">
+                    <i className="fa-solid fa-triangle-exclamation text-red-600 text-6xl mx-auto mb-4 animate-bounce"></i>
+                    <h2 className="text-3xl font-bold text-slate-800 mb-2 mt-4">
+                      {examState.violations >= 3 ? "DISKUALIFIKASI!" : "PERINGATAN!"}
+                    </h2>
+                    <p className="text-lg text-slate-600 mb-6">{examState.warningMessage}</p>
+                    <div className="bg-slate-100 p-4 rounded-lg mb-6 text-left">
+                      <p className="text-sm font-semibold">Tercatat {examState.violations} pelanggaran.</p>
+                      <p className="text-xs text-slate-500">
+                        {examState.violations >= 3 
+                          ? "Batas maksimal pelanggaran telah tercapai." 
+                          : "Jika mencapai 3 pelanggaran, ujian akan dihentikan otomatis."}
+                      </p>
+                    </div>
+                    <button 
+                      onClick={examState.violations >= 3 ? handleFinish : handleAcknowledgeWarning}
+                      className={`w-full font-bold py-4 rounded-xl text-lg shadow-lg transition-colors ${examState.violations >= 3 ? 'bg-slate-800 hover:bg-slate-900 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                    >
+                      {examState.violations >= 3 ? 'KUMPULKAN & AKHIRI UJIAN' : 'SAYA MENGERTI & KEMBALI UJIAN'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <header className="bg-white shadow-md z-10 px-6 py-3 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="bg-blue-100 text-blue-800 p-2 rounded-lg flex items-center gap-2">
+                    <i className="fa-solid fa-clock"></i>
+                    <span className="font-bold text-xl">{formatTime(examState.timeRemaining)}</span>
+                  </div>
+                  <div>
+                    <h1 className="font-bold text-slate-800">{settings.examTitle}</h1>
+                    <p className="text-xs text-slate-500">{student.name} ({student.id})</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  {examState.violations > 0 && (
+                    <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+                      Peringatan: {examState.violations}
+                    </span>
+                  )}
+                  <button 
+                    onClick={() => {
+                      if(window.confirm('Apakah Anda yakin sudah selesai dan ingin mengumpulkan ujian?')) handleFinish();
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2"
+                  >
+                    <i className="fa-solid fa-circle-check"></i>
+                    SELESAI
+                  </button>
+                </div>
+              </header>
+
+              <main className="flex-1 relative w-full h-full bg-slate-200 p-2">
+                <div className="w-full h-full bg-white rounded-xl shadow-inner overflow-hidden">
+                  <iframe 
+                    src={examUrlRef.current} 
+                    className="w-full h-full border-0"
+                    title="Form Ujian"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  ></iframe>
+                </div>
+
+                <div className="absolute bottom-6 right-6 w-48 h-36 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-20 flex items-center justify-center">
+                   <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted 
+                    className="w-full h-full object-cover transform scale-x-[-1]" 
+                  />
+                  {!videoRef.current && <i className="fa-solid fa-camera text-slate-500 text-3xl absolute"></i>}
+                  <div className="absolute bottom-1 right-1 bg-red-600 w-3 h-3 rounded-full animate-pulse border border-white"></div>
+                </div>
+              </main>
+            </div>
+          );
+        };
+
+        // --- KOMPONEN: LAYAR SELESAI ---
+        const FinishedView = ({ student, examState, setStudent, setView }) => (
+          <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i className="fa-solid fa-circle-check text-green-600 text-5xl"></i>
+              </div>
+              <h2 className="text-3xl font-bold text-slate-800 mb-2">Ujian Selesai!</h2>
+              <p className="text-slate-600 mb-6">
+                Terima kasih {student.name}, jawaban Anda telah direkam.
+              </p>
+              
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-8 text-left space-y-2">
+                <p className="text-sm text-slate-600 flex justify-between">
+                  <span>Nomor Peserta:</span> <span className="font-semibold text-slate-800">{student.id}</span>
+                </p>
+                <p className="text-sm text-slate-600 flex justify-between">
+                  <span>Sisa Waktu:</span> <span className="font-semibold text-slate-800">{Math.floor(examState.timeRemaining / 60)} menit</span>
+                </p>
+                <p className="text-sm text-slate-600 flex justify-between">
+                  <span>Catatan Pelanggaran:</span> 
+                  <span className={`font-semibold ${examState.violations >= 3 ? 'text-red-600 font-bold' : examState.violations > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                    {examState.violations} kali {examState.violations >= 3 ? '(Diskualifikasi)' : ''}
+                  </span>
+                </p>
+              </div>
+
+              <button 
+                onClick={() => {
+                  setStudent({ name: '', id: '' });
+                  setView('home');
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+              >
+                Kembali ke Beranda
+              </button>
+            </div>
+          </div>
+        );
+
+        // --- KOMPONEN UTAMA (APP) ---
         function App() {
           const [view, setView] = useState('home'); // 'home', 'admin', 'student_login', 'exam', 'finished'
+          
           const [settings, setSettings] = useState({
             examTitle: 'Ujian Akhir Semester',
-            examUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScwIIGkC2096t6P_2i1c8R4eP_E--9T_99_e_Q/viewform?embedded=true', // Contoh form
-            duration: 60, // dalam menit
+            examUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScwIIGkC2096t6P_2i1c8R4eP_E--9T_99_e_Q/viewform?embedded=true',
+            duration: 60,
           });
           
           const [student, setStudent] = useState({ name: '', id: '' });
+          
           const [examState, setExamState] = useState({
             timeRemaining: 0,
             violations: 0,
@@ -42,7 +525,7 @@
             warningMessage: ''
           });
 
-          // Load pengaturan admin dari local storage saat aplikasi dimulai
+          // Load pengaturan admin dari local storage
           useEffect(() => {
             const savedSettings = localStorage.getItem('exambro_settings');
             if (savedSettings) {
@@ -50,500 +533,18 @@
             }
           }, []);
 
-          // --- KOMPONEN: LAYAR BERANDA ---
-          const HomeView = () => (
-            <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center space-y-8">
-                <div>
-                  <i className="fa-solid fa-desktop text-blue-600 text-6xl mx-auto mb-4"></i>
-                  <h1 className="text-3xl font-bold text-slate-800 mt-4">CBT Exambro</h1>
-                  <p className="text-slate-500 mt-2">Sistem Ujian Aman Berbasis Web</p>
-                </div>
-                
-                <div className="space-y-4">
-                  <button 
-                    onClick={() => setView('student_login')}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
-                  >
-                    <i className="fa-solid fa-play"></i>
-                    Mulai Ujian (Siswa)
-                  </button>
-                  
-                  <button 
-                    onClick={() => setView('admin')}
-                    className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
-                  >
-                    <i className="fa-solid fa-gear"></i>
-                    Panel Admin
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-
-          // --- KOMPONEN: PANEL ADMIN ---
-          const AdminView = () => {
-            const [tempSettings, setTempSettings] = useState(settings);
-
-            const handleSave = () => {
-              // Pastikan URL google form diubah menjadi embedded agar tampil rapi
-              let finalUrl = tempSettings.examUrl;
-              if (finalUrl.includes('docs.google.com/forms') && !finalUrl.includes('embedded=true')) {
-                finalUrl = finalUrl.includes('?') ? finalUrl + '&embedded=true' : finalUrl + '?embedded=true';
-              }
-              
-              const newSettings = { ...tempSettings, examUrl: finalUrl };
-              setSettings(newSettings);
-              localStorage.setItem('exambro_settings', JSON.stringify(newSettings));
-              alert('Pengaturan berhasil disimpan!');
-              setView('home');
-            };
-
-            return (
-              <div className="min-h-screen bg-slate-100 p-4 md:p-8">
-                <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
-                  <div className="flex items-center gap-3 mb-6 border-b pb-4">
-                    <i className="fa-solid fa-gear text-slate-700 text-3xl"></i>
-                    <h2 className="text-2xl font-bold text-slate-800">Pengaturan Ujian (Admin)</h2>
-                  </div>
-
-                  <div className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Judul Ujian</label>
-                      <input 
-                        type="text" 
-                        className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={tempSettings.examTitle}
-                        onChange={(e) => setTempSettings({...tempSettings, examTitle: e.target.value})}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Link Soal (Rekomendasi: Google Forms)</label>
-                      <input 
-                        type="text" 
-                        className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={tempSettings.examUrl}
-                        onChange={(e) => setTempSettings({...tempSettings, examUrl: e.target.value})}
-                        placeholder="https://docs.google.com/forms/d/e/.../viewform"
-                      />
-                      <p className="text-xs text-slate-500 mt-1">
-                        Gunakan Google Forms agar jawaban otomatis tersimpan rapi di Google Spreadsheet (Sheets).
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Durasi Ujian (Menit)</label>
-                      <input 
-                        type="number" 
-                        className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={tempSettings.duration}
-                        onChange={(e) => setTempSettings({...tempSettings, duration: parseInt(e.target.value) || 0})}
-                      />
-                    </div>
-
-                    <div className="pt-4 flex gap-3">
-                      <button 
-                        onClick={handleSave}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
-                      >
-                        Simpan Pengaturan
-                      </button>
-                      <button 
-                        onClick={() => setView('home')}
-                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-xl transition-all"
-                      >
-                        Kembali
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          };
-
-          // --- KOMPONEN: LOGIN SISWA ---
-          const StudentLoginView = () => {
-            const startExam = async () => {
-              if (!student.name || !student.id) {
-                alert("Harap isi Nama dan Nomor Peserta!");
-                return;
-              }
-              
-              // Meminta akses Fullscreen
-              try {
-                if (document.documentElement.requestFullscreen) {
-                  await document.documentElement.requestFullscreen();
-                }
-              } catch (err) {
-                console.error("Fullscreen error:", err);
-                alert("Gagal masuk ke mode layar penuh. Pastikan browser Anda mengizinkan.");
-              }
-
-              setExamState({
-                timeRemaining: settings.duration * 60,
-                violations: 0,
-                isWarningOpen: false,
-                warningMessage: ''
-              });
-              setView('exam');
-            };
-
-            return (
-              <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-                  <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-slate-800">Masuk Ujian</h2>
-                    <p className="text-slate-500">{settings.examTitle}</p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap</label>
-                      <input 
-                        type="text" 
-                        className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500"
-                        value={student.name}
-                        onChange={(e) => setStudent({...student, name: e.target.value})}
-                        placeholder="Masukkan nama Anda"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Nomor Peserta / NIS</label>
-                      <input 
-                        type="text" 
-                        className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500"
-                        value={student.id}
-                        onChange={(e) => setStudent({...student, id: e.target.value})}
-                        placeholder="Masukkan nomor peserta"
-                      />
-                    </div>
-                    
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6 text-sm text-yellow-800">
-                      <p className="font-bold flex items-center gap-2 mb-1">
-                        <i className="fa-solid fa-shield-halved"></i> Perhatian!
-                      </p>
-                      <ul className="list-disc pl-5 space-y-1">
-                        <li>Ujian akan mengunci layar secara otomatis.</li>
-                        <li>Kamera akan diaktifkan untuk pemantauan.</li>
-                        <li>Membuka tab/aplikasi lain akan dicatat sebagai pelanggaran.</li>
-                      </ul>
-                    </div>
-
-                    <div className="pt-4 flex gap-3">
-                      <button 
-                        onClick={startExam}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
-                      >
-                        <i className="fa-solid fa-play"></i>
-                        Mulai Kerjakan
-                      </button>
-                      <button 
-                        onClick={() => setView('home')}
-                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-3 rounded-xl transition-all px-4"
-                        title="Batal"
-                      >
-                        <i className="fa-solid fa-right-from-bracket"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          };
-
-          // --- KOMPONEN: INTERFACE UJIAN UTAMA ---
-          const ExamView = () => {
-            const videoRef = useRef(null);
-
-            // Audio API untuk suara selesai
-            const playFinishSound = () => {
-              try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                const ctx = new AudioContext();
-                
-                // Nada 1
-                const osc1 = ctx.createOscillator();
-                const gain1 = ctx.createGain();
-                osc1.connect(gain1);
-                gain1.connect(ctx.destination);
-                osc1.frequency.value = 523.25; // C5
-                gain1.gain.setValueAtTime(0.1, ctx.currentTime);
-                osc1.start(ctx.currentTime);
-                osc1.stop(ctx.currentTime + 0.15);
-                
-                // Nada 2 (sukses)
-                const osc2 = ctx.createOscillator();
-                const gain2 = ctx.createGain();
-                osc2.connect(gain2);
-                gain2.connect(ctx.destination);
-                osc2.frequency.value = 659.25; // E5
-                gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.2);
-                osc2.start(ctx.currentTime + 0.2);
-                osc2.stop(ctx.currentTime + 0.5);
-              } catch (e) {
-                console.log("Web Audio API tidak didukung browser ini.");
-              }
-            };
-
-            // Setup Kamera
-            useEffect(() => {
-              let stream = null;
-              const startCamera = async () => {
-                try {
-                  stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                  if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                  }
-                } catch (err) {
-                  console.error("Camera error:", err);
-                  alert("Gagal mengakses kamera. Ujian tetap dilanjutkan tanpa pemantauan visual.");
-                }
-              };
-              startCamera();
-
-              return () => {
-                // Matikan kamera saat keluar
-                if (stream) {
-                  stream.getTracks().forEach(track => track.stop());
-                }
-              };
-            }, []);
-
-            // Setup Timer
-            useEffect(() => {
-              if (examState.timeRemaining <= 0) {
-                handleFinish();
-                return;
-              }
-              const timerId = setInterval(() => {
-                setExamState(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
-              }, 1000);
-              return () => clearInterval(timerId);
-            }, [examState.timeRemaining]);
-
-            // Setup Keamanan: Deteksi keluar layar penuh dan pindah tab
-            useEffect(() => {
-              const handleVisibilityChange = () => {
-                if (document.hidden) {
-                  // Siswa membuka tab lain atau me-minimize browser
-                  setExamState(prev => {
-                    if (prev.violations >= 3) return prev; // Abaikan jika sudah diskualifikasi
-                    const newViolations = prev.violations + 1;
-                    return {
-                      ...prev,
-                      violations: newViolations,
-                      isWarningOpen: true,
-                      warningMessage: newViolations >= 3 
-                        ? "PELANGGARAN MAKSIMAL (3 KALI)! Anda terdeteksi membuka aplikasi/tab lain. Ujian Anda dihentikan secara otomatis." 
-                        : `PERINGATAN ${newViolations} DARI 3! Anda terdeteksi membuka aplikasi/tab lain.`
-                    };
-                  });
-                }
-              };
-
-              const handleFullscreenChange = () => {
-                if (!document.fullscreenElement) {
-                  // Siswa keluar dari fullscreen
-                  setExamState(prev => {
-                    if (prev.violations >= 3) return prev; // Abaikan jika sudah diskualifikasi
-                    const newViolations = prev.violations + 1;
-                    return {
-                      ...prev,
-                      violations: newViolations,
-                      isWarningOpen: true,
-                      warningMessage: newViolations >= 3 
-                        ? "PELANGGARAN MAKSIMAL (3 KALI)! Anda keluar dari mode layar penuh. Ujian Anda dihentikan secara otomatis."
-                        : `PERINGATAN ${newViolations} DARI 3! Anda keluar dari mode layar penuh.`
-                    };
-                  });
-                }
-              };
-
-              // Mencegah klik kanan dan inspect element (dasar)
-              const handleContextMenu = (e) => e.preventDefault();
-              const handleKeyDown = (e) => {
-                // Blokir F12, Ctrl+Shift+I, dll
-                if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
-                  e.preventDefault();
-                }
-              };
-
-              document.addEventListener("visibilitychange", handleVisibilityChange);
-              document.addEventListener("fullscreenchange", handleFullscreenChange);
-              document.addEventListener("contextmenu", handleContextMenu);
-              window.addEventListener("keydown", handleKeyDown);
-
-              return () => {
-                document.removeEventListener("visibilitychange", handleVisibilityChange);
-                document.removeEventListener("fullscreenchange", handleFullscreenChange);
-                document.removeEventListener("contextmenu", handleContextMenu);
-                window.removeEventListener("keydown", handleKeyDown);
-              };
-            }, []);
-
-            const formatTime = (seconds) => {
-              const h = Math.floor(seconds / 3600);
-              const m = Math.floor((seconds % 3600) / 60);
-              const s = seconds % 60;
-              if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-              return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-            };
-
-            const handleAcknowledgeWarning = async () => {
-              setExamState(prev => ({ ...prev, isWarningOpen: false }));
-              // Kembalikan ke fullscreen
-              if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-                try {
-                  await document.documentElement.requestFullscreen();
-                } catch(e) { console.log(e); }
-              }
-            };
-
-            const handleFinish = () => {
-              playFinishSound();
-              if (document.exitFullscreen && document.fullscreenElement) {
-                document.exitFullscreen().catch(err => console.log(err));
-              }
-              setView('finished');
-            };
-
-            return (
-              <div className="h-screen w-screen flex flex-col bg-slate-100 overflow-hidden relative select-none">
-                
-                {/* WARNING MODAL (Jika ketahuan curang) */}
-                {examState.isWarningOpen && (
-                  <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl transform scale-105 transition-transform">
-                      <i className="fa-solid fa-triangle-exclamation text-red-600 text-6xl mx-auto mb-4 animate-bounce"></i>
-                      <h2 className="text-3xl font-bold text-slate-800 mb-2 mt-4">
-                        {examState.violations >= 3 ? "DISKUALIFIKASI!" : "PERINGATAN!"}
-                      </h2>
-                      <p className="text-lg text-slate-600 mb-6">{examState.warningMessage}</p>
-                      <div className="bg-slate-100 p-4 rounded-lg mb-6 text-left">
-                        <p className="text-sm font-semibold">Tercatat {examState.violations} pelanggaran.</p>
-                        <p className="text-xs text-slate-500">
-                          {examState.violations >= 3 
-                            ? "Batas maksimal pelanggaran telah tercapai." 
-                            : "Jika mencapai 3 pelanggaran, ujian akan dihentikan otomatis."}
-                        </p>
-                      </div>
-                      <button 
-                        onClick={examState.violations >= 3 ? handleFinish : handleAcknowledgeWarning}
-                        className={`w-full font-bold py-4 rounded-xl text-lg shadow-lg transition-colors ${examState.violations >= 3 ? 'bg-slate-800 hover:bg-slate-900 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-                      >
-                        {examState.violations >= 3 ? 'KUMPULKAN & AKHIRI UJIAN' : 'SAYA MENGERTI & KEMBALI UJIAN'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* HEADER */}
-                <header className="bg-white shadow-md z-10 px-6 py-3 flex items-center justify-between flex-shrink-0">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-blue-100 text-blue-800 p-2 rounded-lg flex items-center gap-2">
-                      <i className="fa-solid fa-clock"></i>
-                      <span className="font-bold text-xl">{formatTime(examState.timeRemaining)}</span>
-                    </div>
-                    <div>
-                      <h1 className="font-bold text-slate-800">{settings.examTitle}</h1>
-                      <p className="text-xs text-slate-500">{student.name} ({student.id})</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    {examState.violations > 0 && (
-                      <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
-                        Peringatan: {examState.violations}
-                      </span>
-                    )}
-                    <button 
-                      onClick={() => {
-                        if(window.confirm('Apakah Anda yakin sudah selesai dan ingin mengumpulkan ujian?')) handleFinish();
-                      }}
-                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2"
-                    >
-                      <i className="fa-solid fa-circle-check"></i>
-                      SELESAI
-                    </button>
-                  </div>
-                </header>
-
-                {/* AREA KERJA (IFRAME & CAMERA) */}
-                <main className="flex-1 relative w-full h-full bg-slate-200 p-2">
-                  <div className="w-full h-full bg-white rounded-xl shadow-inner overflow-hidden">
-                    <iframe 
-                      src={settings.examUrl} 
-                      className="w-full h-full border-0"
-                      title="Form Ujian"
-                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                    ></iframe>
-                  </div>
-
-                  {/* Kamera PIP (Picture in Picture) di pojok */}
-                  <div className="absolute bottom-6 right-6 w-48 h-36 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-20 flex items-center justify-center">
-                     <video 
-                      ref={videoRef} 
-                      autoPlay 
-                      playsInline 
-                      muted 
-                      className="w-full h-full object-cover transform scale-x-[-1]" 
-                    />
-                    {!videoRef.current && <i className="fa-solid fa-camera text-slate-500 text-3xl absolute"></i>}
-                    <div className="absolute bottom-1 right-1 bg-red-600 w-3 h-3 rounded-full animate-pulse border border-white"></div>
-                  </div>
-                </main>
-              </div>
-            );
-          };
-
-          // --- KOMPONEN: LAYAR SELESAI ---
-          const FinishedView = () => (
-            <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <i className="fa-solid fa-circle-check text-green-600 text-5xl"></i>
-                </div>
-                <h2 className="text-3xl font-bold text-slate-800 mb-2">Ujian Selesai!</h2>
-                <p className="text-slate-600 mb-6">
-                  Terima kasih {student.name}, jawaban Anda telah direkam.
-                </p>
-                
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-8 text-left space-y-2">
-                  <p className="text-sm text-slate-600 flex justify-between">
-                    <span>Nomor Peserta:</span> <span className="font-semibold text-slate-800">{student.id}</span>
-                  </p>
-                  <p className="text-sm text-slate-600 flex justify-between">
-                    <span>Sisa Waktu:</span> <span className="font-semibold text-slate-800">{Math.floor(examState.timeRemaining / 60)} menit</span>
-                  </p>
-                  <p className="text-sm text-slate-600 flex justify-between">
-                    <span>Catatan Pelanggaran:</span> 
-                    <span className={`font-semibold ${examState.violations >= 3 ? 'text-red-600 font-bold' : examState.violations > 0 ? 'text-red-500' : 'text-green-600'}`}>
-                      {examState.violations} kali {examState.violations >= 3 ? '(Diskualifikasi)' : ''}
-                    </span>
-                  </p>
-                </div>
-
-                <button 
-                  onClick={() => {
-                    setStudent({ name: '', id: '' });
-                    setView('home');
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
-                >
-                  Kembali ke Beranda
-                </button>
-              </div>
-            </div>
-          );
-
-          // Router Sederhana
+          // Mengatur rute perpindahan layar
           switch (view) {
-            case 'admin': return <AdminView />;
-            case 'student_login': return <StudentLoginView />;
-            case 'exam': return <ExamView />;
-            case 'finished': return <FinishedView />;
-            default: return <HomeView />;
+            case 'admin': 
+              return <AdminView settings={settings} setSettings={setSettings} setView={setView} />;
+            case 'student_login': 
+              return <StudentLoginView settings={settings} student={student} setStudent={setStudent} setExamState={setExamState} setView={setView} />;
+            case 'exam': 
+              return <ExamView settings={settings} student={student} examState={examState} setExamState={setExamState} setView={setView} />;
+            case 'finished': 
+              return <FinishedView student={student} examState={examState} setStudent={setStudent} setView={setView} />;
+            default: 
+              return <HomeView setView={setView} />;
           }
         }
 
