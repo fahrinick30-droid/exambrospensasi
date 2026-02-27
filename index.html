@@ -387,7 +387,7 @@
               window.removeEventListener('mousemove', handleDragMove);
               window.removeEventListener('mouseup', handleDragEnd);
               window.removeEventListener('touchmove', handleDragMove);
-              window.removeEventListener('touchend', handleDragEnd);
+              window.removeEventListener('touchmove', handleDragEnd);
             };
           }, [isDraggingCam]);
 
@@ -595,9 +595,9 @@
                   ></iframe>
                 </div>
 
-                {/* MODUL KAMERA (Diperkecil dan Draggable) */}
+                {/* MODUL KAMERA (Diperkecil dan Draggable) posisinya di kanan atas (bawah tombol Selesai) */}
                 <div 
-                  className="absolute bottom-6 right-6 w-32 h-24 sm:w-36 sm:h-28 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-[100] flex items-center justify-center cursor-move"
+                  className="absolute top-4 right-6 w-32 h-24 sm:w-36 sm:h-28 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-[100] flex items-center justify-center cursor-move"
                   style={{ 
                     transform: `translate(${camPos.x}px, ${camPos.y}px)`, 
                     touchAction: 'none' // mencegah zoom/scroll hp secara tidak sengaja saat digeser
