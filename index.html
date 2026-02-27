@@ -60,6 +60,7 @@
         // --- KOMPONEN: PANEL ADMIN ---
         const AdminView = ({ settings, setSettings, setView }) => {
           const [tempSettings, setTempSettings] = useState(settings);
+          const [showSuccess, setShowSuccess] = useState(false);
 
           const handleSave = () => {
             // Pastikan URL google form diubah menjadi embedded agar tampil rapi
@@ -71,8 +72,12 @@
             const newSettings = { ...tempSettings, examUrl: finalUrl };
             setSettings(newSettings);
             localStorage.setItem('exambro_settings', JSON.stringify(newSettings));
-            alert('Pengaturan berhasil disimpan!');
-            setView('home');
+            
+            setShowSuccess(true);
+            setTimeout(() => {
+              setShowSuccess(false);
+              setView('home');
+            }, 1500);
           };
 
           return (
@@ -123,7 +128,7 @@
                       onClick={handleSave}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
                     >
-                      Simpan Pengaturan
+                      {showSuccess ? 'Tersimpan!' : 'Simpan Pengaturan'}
                     </button>
                     <button 
                       onClick={() => setView('home')}
@@ -140,12 +145,30 @@
 
         // --- KOMPONEN: LOGIN SISWA ---
         const StudentLoginView = ({ settings, student, setStudent, setExamState, setView }) => {
+          const [isLoading, setIsLoading] = useState(false);
+          const [errorMsg, setErrorMsg] = useState('');
+
           const startExam = async () => {
-            if (!student.name || !student.id) {
-              alert("Harap isi Nama dan Nomor Peserta!");
+            setErrorMsg('');
+            if (!student.name) {
+              setErrorMsg("Harap isi Nama Lengkap!");
               return;
             }
             
+            setIsLoading(true);
+
+            // Meminta Izin Kamera Sebelum Masuk Ujian
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              // Jika diizinkan, matikan stream sementara agar tidak dobel. Layar Ujian (ExamView) akan menyalakannya kembali secara otomatis.
+              stream.getTracks().forEach(track => track.stop());
+            } catch (err) {
+              console.warn("Kamera diblokir/ditolak:", err);
+              setErrorMsg("Akses kamera WAJIB diizinkan untuk dapat mengikuti ujian ini! Silakan izinkan akses kamera pada popup browser Anda.");
+              setIsLoading(false);
+              return; // Hentikan proses di sini, jangan masuk ke layar ujian
+            }
+
             // Meminta akses Fullscreen
             try {
               if (document.documentElement.requestFullscreen) {
@@ -162,6 +185,7 @@
               isWarningOpen: false,
               warningMessage: ''
             });
+            setIsLoading(false);
             setView('exam');
           };
 
@@ -174,6 +198,11 @@
                 </div>
 
                 <div className="space-y-4">
+                  {errorMsg && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                      <span className="block sm:inline">{errorMsg}</span>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap</label>
                     <input 
@@ -182,16 +211,6 @@
                       value={student.name}
                       onChange={(e) => setStudent({...student, name: e.target.value})}
                       placeholder="Masukkan nama Anda"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nomor Peserta / NIS</label>
-                    <input 
-                      type="text" 
-                      className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500"
-                      value={student.id}
-                      onChange={(e) => setStudent({...student, id: e.target.value})}
-                      placeholder="Masukkan nomor peserta"
                     />
                   </div>
                   
@@ -209,10 +228,15 @@
                   <div className="pt-4 flex gap-3">
                     <button 
                       onClick={startExam}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
+                      disabled={isLoading}
+                      className={`flex-1 ${isLoading ? 'bg-slate-400' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all`}
                     >
-                      <i className="fa-solid fa-play"></i>
-                      Mulai Kerjakan
+                      {isLoading ? (
+                        <i className="fa-solid fa-spinner fa-spin"></i>
+                      ) : (
+                        <i className="fa-solid fa-play"></i>
+                      )}
+                      <span>{isLoading ? 'Memeriksa Kamera...' : 'Mulai Kerjakan'}</span>
                     </button>
                     <button 
                       onClick={() => setView('home')}
@@ -231,6 +255,8 @@
         // --- KOMPONEN: INTERFACE UJIAN UTAMA ---
         const ExamView = ({ settings, student, examState, setExamState, setView }) => {
           const videoRef = useRef(null);
+          const streamRef = useRef(null); // Menyimpan referensi stream kamera
+          const [showConfirmDialog, setShowConfirmDialog] = useState(false);
           
           // Memastikan link tidak dimuat ulang jika setting berubah secara tidak sengaja
           const examUrlRef = useRef(settings.examUrl);
@@ -265,6 +291,12 @@
 
           const handleFinish = () => {
             playFinishSound();
+            
+            // Matikan kamera seketika saat tombol selesai diklik
+            if (streamRef.current) {
+              streamRef.current.getTracks().forEach(track => track.stop());
+            }
+
             if (document.exitFullscreen && document.fullscreenElement) {
               document.exitFullscreen().catch(err => console.warn("Gagal keluar dari fullscreen:", err));
             }
@@ -273,12 +305,11 @@
 
           // Setup Kamera
           useEffect(() => {
-            let stream = null;
             const startCamera = async () => {
               try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                streamRef.current = await navigator.mediaDevices.getUserMedia({ video: true });
                 if (videoRef.current) {
-                  videoRef.current.srcObject = stream;
+                  videoRef.current.srcObject = streamRef.current;
                 }
               } catch (err) {
                 console.warn("Gagal mengakses kamera:", err);
@@ -288,8 +319,8 @@
             startCamera();
 
             return () => {
-              if (stream) {
-                stream.getTracks().forEach(track => track.stop());
+              if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
               }
             };
           }, []);
@@ -384,6 +415,33 @@
           return (
             <div className="h-screen w-screen flex flex-col bg-slate-100 overflow-hidden relative select-none">
               
+              {/* MODAL KONFIRMASI SELESAI */}
+              {showConfirmDialog && (
+                <div className="absolute inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+                    <h3 className="text-xl font-bold text-slate-800 mb-4">Kumpulkan Ujian?</h3>
+                    <p className="text-slate-600 mb-6">Apakah Anda yakin sudah selesai dan ingin mengumpulkan ujian?</p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowConfirmDialog(false)}
+                        className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded-xl transition-all"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowConfirmDialog(false);
+                          handleFinish();
+                        }}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-xl transition-all"
+                      >
+                        Ya, Selesai
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {examState.isWarningOpen && (
                 <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4">
                   <div className="bg-white rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl transform scale-105 transition-transform">
@@ -418,7 +476,7 @@
                   </div>
                   <div>
                     <h1 className="font-bold text-slate-800">{settings.examTitle}</h1>
-                    <p className="text-xs text-slate-500">{student.name} ({student.id})</p>
+                    <p className="text-xs text-slate-500">{student.name}</p>
                   </div>
                 </div>
                 
@@ -429,9 +487,7 @@
                     </span>
                   )}
                   <button 
-                    onClick={() => {
-                      if(window.confirm('Apakah Anda yakin sudah selesai dan ingin mengumpulkan ujian?')) handleFinish();
-                    }}
+                    onClick={() => setShowConfirmDialog(true)}
                     className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2"
                   >
                     <i className="fa-solid fa-circle-check"></i>
@@ -480,9 +536,6 @@
               
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-8 text-left space-y-2">
                 <p className="text-sm text-slate-600 flex justify-between">
-                  <span>Nomor Peserta:</span> <span className="font-semibold text-slate-800">{student.id}</span>
-                </p>
-                <p className="text-sm text-slate-600 flex justify-between">
                   <span>Sisa Waktu:</span> <span className="font-semibold text-slate-800">{Math.floor(examState.timeRemaining / 60)} menit</span>
                 </p>
                 <p className="text-sm text-slate-600 flex justify-between">
@@ -495,7 +548,7 @@
 
               <button 
                 onClick={() => {
-                  setStudent({ name: '', id: '' });
+                  setStudent({ name: '' });
                   setView('home');
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
@@ -516,7 +569,7 @@
             duration: 60,
           });
           
-          const [student, setStudent] = useState({ name: '', id: '' });
+          const [student, setStudent] = useState({ name: '' });
           
           const [examState, setExamState] = useState({
             timeRemaining: 0,
