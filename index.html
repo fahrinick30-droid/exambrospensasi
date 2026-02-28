@@ -60,7 +60,7 @@
                   MULAI UJIAN
                 </button>
                 
-                <p className="text-[10px] text-slate-300 font-mono uppercase tracking-widest">Secure Exam Environment v2.1.1</p>
+                <p className="text-[10px] text-slate-300 font-mono uppercase tracking-widest">Secure Exam Environment v2.1.2</p>
               </div>
             </div>
           );
@@ -409,6 +409,26 @@
             setTimeout(() => setView('finished'), 1000);
           };
 
+          const handleAcknowledgeWarning = () => {
+             // Cek apakah masih dalam mode split screen atau tinggi layar tidak normal
+             const isStillResized = window.innerHeight < (initialHeightRef.current * 0.85);
+             
+             if (isStillResized) {
+               // Jika masih split, ganti pesan dan biarkan modal terbuka (suara tetap bunyi)
+               setExamState(prev => ({
+                 ...prev,
+                 warningMessage: "KEMBALI KE SATU LAYAR LAGI"
+               }));
+             } else {
+               // Jika sudah normal, tutup peringatan dan coba balikkan ke fullscreen
+               setExamState(prev => ({ ...prev, isWarningOpen: false }));
+               
+               if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                  document.documentElement.requestFullscreen().catch(() => {});
+               }
+             }
+          };
+
           const handleDragStart = (e) => {
             setIsDraggingCam(true);
             const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
@@ -461,21 +481,25 @@
             const handleSecurity = (e) => {
               if (isFinishingRef.current) return;
               
-              // Logika deteksi pindah tab atau keluar fullscreen
               const isHidden = document.hidden;
               const isNotFullscreen = !document.fullscreenElement;
-              const isResized = window.innerHeight < (initialHeightRef.current * 0.85); // Deteksi Split Screen
+              const isResized = window.innerHeight < (initialHeightRef.current * 0.85);
 
               if (isHidden || isNotFullscreen || isResized) {
                 setExamState(prev => {
-                  if (prev.isWarningOpen) return prev;
+                  if (prev.isWarningOpen && !isResized) return prev; 
+                  // Update pesan jika terdeteksi split screen saat modal sudah terbuka
+                  if (prev.isWarningOpen && isResized) {
+                    return { ...prev, warningMessage: "KEMBALI KE SATU LAYAR LAGI" };
+                  }
+                  
                   if (prev.violations >= 3) return prev;
                   const newV = prev.violations + 1;
                   return { 
                     ...prev, 
                     violations: newV, 
                     isWarningOpen: true, 
-                    warningMessage: `Pelanggaran ${newV}` 
+                    warningMessage: isResized ? "KEMBALI KE SATU LAYAR LAGI" : `Pelanggaran ${newV}` 
                   };
                 });
               }
@@ -483,7 +507,7 @@
 
             document.addEventListener("visibilitychange", handleSecurity);
             document.addEventListener("fullscreenchange", handleSecurity);
-            window.addEventListener("resize", handleSecurity); // Sensor tambahan untuk split screen
+            window.addEventListener("resize", handleSecurity);
             document.addEventListener("contextmenu", e => e.preventDefault());
             
             return () => {
@@ -519,9 +543,9 @@
                 <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4 text-white text-center">
                   <div className="max-w-md bg-white p-8 rounded-3xl shadow-2xl text-slate-800 border-[10px] border-red-500">
                     <i className="fa-solid fa-triangle-exclamation text-red-600 text-8xl mb-4 animate-bounce"></i>
-                    <h2 className="text-6xl font-black mb-2 text-red-600 uppercase">{examState.warningMessage}</h2>
-                    <p className="text-slate-600 mb-6 font-bold text-xl">Anda terdeteksi keluar dari aplikasi ujian!</p>
-                    <button onClick={examState.violations >= 3 ? handleFinish : () => setExamState(p => ({...p, isWarningOpen: false}))} className="w-full bg-red-600 text-white py-4 rounded-2xl font-black text-2xl shadow-xl active:scale-95 transition-all">
+                    <h2 className="text-5xl font-black mb-2 text-red-600 uppercase leading-tight">{examState.warningMessage}</h2>
+                    <p className="text-slate-600 mb-6 font-bold text-xl">Anda terdeteksi melakukan pelanggaran ujian!</p>
+                    <button onClick={examState.violations >= 3 ? handleFinish : handleAcknowledgeWarning} className="w-full bg-red-600 text-white py-4 rounded-2xl font-black text-2xl shadow-xl active:scale-95 transition-all">
                       {examState.violations >= 3 ? 'KUMPULKAN SEKARANG' : 'SAYA MENGERTI'}
                     </button>
                   </div>
