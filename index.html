@@ -68,11 +68,11 @@
           const [showSuccess, setShowSuccess] = useState(false);
           const [isSaving, setIsSaving] = useState(false);
 
-          // Fungsi menambah token baru
+          // Fungsi menambah token baru dengan struktur lengkap (judul, token, link, durasi)
           const handleAddToken = () => {
             setTempSettings({
               ...tempSettings,
-              tokens: [...tempSettings.tokens, { token: '', url: '' }]
+              tokens: [...tempSettings.tokens, { title: '', token: '', url: '', duration: 60 }]
             });
           };
 
@@ -102,8 +102,10 @@
             
             // Format URL di setiap token sebelum disimpan
             const formattedTokens = tempSettings.tokens.map(t => ({
+              title: t.title.trim() || 'Ujian CBT Exambro',
               token: t.token.trim(),
-              url: formatUrl(t.url)
+              url: formatUrl(t.url),
+              duration: parseInt(t.duration) || 60
             })).filter(t => t.token !== '' && t.url !== ''); // Jangan simpan yang kosong
 
             const newSettings = { 
@@ -119,9 +121,7 @@
               setIsSaving(true);
               try {
                 const formData = new URLSearchParams();
-                formData.append('examTitle', newSettings.examTitle);
-                formData.append('tokensData', JSON.stringify(newSettings.tokens)); // Kirim array objek sebagai string
-                formData.append('duration', newSettings.duration);
+                formData.append('tokensData', JSON.stringify(newSettings.tokens));
 
                 await fetch(GOOGLE_SCRIPT_URL, {
                   method: 'POST',
@@ -137,21 +137,19 @@
               setIsSaving(false);
               setTimeout(() => {
                 setShowSuccess(false);
-                // Tidak langsung keluar ke 'home'
               }, 1500);
             } else {
               // Jika URL Script belum diisi, simpan ke lokal saja
               setShowSuccess(true);
               setTimeout(() => {
                 setShowSuccess(false);
-                // Tidak langsung keluar ke 'home'
               }, 1500);
             }
           };
 
           return (
             <div className="min-h-screen bg-slate-100 p-4 md:p-8">
-              <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
+              <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
                 <div className="flex items-center gap-3 mb-6 border-b pb-4">
                   <i className="fa-solid fa-gear text-slate-700 text-3xl"></i>
                   <h2 className="text-2xl font-bold text-slate-800">Pengaturan Ujian (Admin)</h2>
@@ -165,78 +163,85 @@
                 )}
 
                 <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Judul Ujian Utama</label>
-                    <input 
-                      type="text" 
-                      className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                      value={tempSettings.examTitle}
-                      onChange={(e) => setTempSettings({...tempSettings, examTitle: e.target.value})}
-                      placeholder="Misal: Penilaian Tengah Semester"
-                    />
-                  </div>
                   
-                  {/* --- BAGIAN PENGATURAN TOKEN --- */}
+                  {/* --- BAGIAN PENGATURAN TOKEN (PER-SESI) --- */}
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <div className="flex justify-between items-center mb-4">
                       <p className="font-bold text-blue-800 text-sm">
-                        <i className="fa-solid fa-key mr-2"></i>Daftar Token & Link Soal
+                        <i className="fa-solid fa-layer-group mr-2"></i>Daftar Sesi Ujian (Berdasarkan Token)
                       </p>
                       <button 
                         onClick={handleAddToken}
                         className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
                       >
-                        <i className="fa-solid fa-plus"></i> Tambah Token
+                        <i className="fa-solid fa-plus"></i> Tambah Sesi
                       </button>
                     </div>
 
                     <div className="space-y-4">
                       {tempSettings.tokens.length === 0 && (
-                        <p className="text-sm text-slate-500 text-center italic">Belum ada token. Klik "Tambah Token" untuk membuat.</p>
+                        <p className="text-sm text-slate-500 text-center italic py-4">Belum ada sesi/token. Klik "Tambah Sesi" untuk membuat.</p>
                       )}
                       
                       {tempSettings.tokens.map((item, index) => (
-                        <div key={index} className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col sm:flex-row gap-3 relative">
-                          <div className="w-full sm:w-1/3">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kode Token</label>
-                            <input 
-                              type="text" 
-                              className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono"
-                              value={item.token}
-                              onChange={(e) => handleTokenChange(index, 'token', e.target.value)}
-                              placeholder="Misal: MTK01"
-                            />
+                        <div key={index} className="bg-white p-4 rounded-lg border border-slate-200 flex flex-col gap-3 relative shadow-sm">
+                          
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="w-full sm:w-2/3">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Judul Ujian</label>
+                              <input 
+                                type="text" 
+                                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={item.title || ''}
+                                onChange={(e) => handleTokenChange(index, 'title', e.target.value)}
+                                placeholder="Misal: MTK Kelas 7"
+                              />
+                            </div>
+                            <div className="w-full sm:w-1/3">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kode Token</label>
+                              <input 
+                                type="text" 
+                                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono"
+                                value={item.token}
+                                onChange={(e) => handleTokenChange(index, 'token', e.target.value)}
+                                placeholder="Misal: MTK01"
+                              />
+                            </div>
                           </div>
-                          <div className="w-full sm:w-2/3">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Link Soal (Google Form)</label>
-                            <input 
-                              type="text" 
-                              className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                              value={item.url}
-                              onChange={(e) => handleTokenChange(index, 'url', e.target.value)}
-                              placeholder="https://docs.google.com/forms/..."
-                            />
+
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="w-full sm:w-2/3">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Link Soal (Google Form)</label>
+                              <input 
+                                type="text" 
+                                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={item.url}
+                                onChange={(e) => handleTokenChange(index, 'url', e.target.value)}
+                                placeholder="https://docs.google.com/forms/..."
+                              />
+                            </div>
+                            <div className="w-full sm:w-1/3">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Durasi (Menit)</label>
+                              <input 
+                                type="number" 
+                                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={item.duration || ''}
+                                onChange={(e) => handleTokenChange(index, 'duration', parseInt(e.target.value) || 0)}
+                                placeholder="60"
+                              />
+                            </div>
                           </div>
+
                           <button 
                             onClick={() => handleRemoveToken(index)}
-                            className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-500 text-red-600 hover:text-white w-6 h-6 rounded-full flex items-center justify-center transition-colors shadow-sm"
+                            className="absolute -top-3 -right-3 bg-red-100 hover:bg-red-500 text-red-600 hover:text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-md border border-white"
                             title="Hapus Token"
                           >
-                            <i className="fa-solid fa-times text-xs"></i>
+                            <i className="fa-solid fa-trash text-xs"></i>
                           </button>
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Durasi Ujian Semua Sesi (Menit)</label>
-                    <input 
-                      type="number" 
-                      className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                      value={tempSettings.duration}
-                      onChange={(e) => setTempSettings({...tempSettings, duration: parseInt(e.target.value) || 0})}
-                    />
                   </div>
 
                   <div className="pt-4 flex gap-3">
@@ -283,8 +288,13 @@
               return;
             }
             
-            // Simpan link aktif yang cocok dengan token ke data student
-            setStudent({ ...student, activeUrl: matchedExam.url });
+            // Simpan link dan judul yang cocok dengan token ke data student
+            setStudent({ 
+              ...student, 
+              activeUrl: matchedExam.url,
+              activeTitle: matchedExam.title || 'Ujian CBT Exambro',
+              activeDuration: parseInt(matchedExam.duration) || 60
+            });
             setIsLoading(true);
 
             // Meminta Izin Kamera Sebelum Masuk Ujian
@@ -309,7 +319,7 @@
             }
 
             setExamState({
-              timeRemaining: settings.duration * 60,
+              timeRemaining: (parseInt(matchedExam.duration) || 60) * 60,
               violations: 0,
               isWarningOpen: false,
               warningMessage: ''
@@ -323,7 +333,7 @@
               <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
                 <div className="text-center mb-8">
                   <h2 className="text-2xl font-bold text-slate-800">Masuk Ujian</h2>
-                  <p className="text-slate-500">{settings.examTitle}</p>
+                  <p className="text-slate-500">Silakan masukkan token untuk memulai</p>
                 </div>
 
                 <div className="space-y-4">
@@ -577,7 +587,7 @@
                     <span className="font-bold text-xl">{formatTime(examState.timeRemaining)}</span>
                   </div>
                   <div>
-                    <h1 className="font-bold text-slate-800">{settings.examTitle}</h1>
+                    <h1 className="font-bold text-slate-800">{student.activeTitle}</h1>
                     <p className="text-xs text-slate-500"><span className="font-mono bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-bold">Token: {student.token.toUpperCase()}</span></p>
                   </div>
                 </div>
@@ -640,7 +650,7 @@
 
               <button 
                 onClick={() => {
-                  setStudent({ token: '', activeUrl: '' });
+                  setStudent({ token: '', activeUrl: '', activeTitle: '', activeDuration: 60 });
                   setView('home');
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
@@ -656,13 +666,11 @@
           const [view, setView] = useState('home'); 
           
           const [settings, setSettings] = useState({
-            examTitle: 'Ujian Akhir Semester',
-            duration: 60,
             tokens: [] // Array untuk menyimpan daftar Token & Link
           });
           
           // State murid ditambahkan 'activeUrl' untuk menyimpan link soal yg berhasil didapat dari token
-          const [student, setStudent] = useState({ token: '', activeUrl: '' });
+          const [student, setStudent] = useState({ token: '', activeUrl: '', activeTitle: '', activeDuration: 60 });
           
           const [examState, setExamState] = useState({
             timeRemaining: 0,
@@ -679,18 +687,16 @@
                   const response = await fetch(GOOGLE_SCRIPT_URL);
                   const data = await response.json();
                   
-                  if (data && data.examTitle) {
+                  if (data && data.tokensData) {
                     let parsedTokens = [];
                     try {
                       // Cek apakah data valid dan bukan "undefined" sebelum di-parse
-                      if (data.tokensData && data.tokensData !== "undefined" && data.tokensData !== "null") {
+                      if (data.tokensData !== "undefined" && data.tokensData !== "null") {
                         parsedTokens = typeof data.tokensData === 'string' ? JSON.parse(data.tokensData) : data.tokensData;
                       }
                     } catch (e) { console.error("Gagal parsing token", e); }
 
                     setSettings({
-                      examTitle: data.examTitle,
-                      duration: parseInt(data.duration) || 60,
                       tokens: Array.isArray(parsedTokens) ? parsedTokens : []
                     });
                     return; 
