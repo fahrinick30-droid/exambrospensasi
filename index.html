@@ -60,7 +60,7 @@
                   MULAI UJIAN
                 </button>
                 
-                <p className="text-[10px] text-slate-300 font-mono uppercase tracking-widest">Secure Exam Environment v2.1.3</p>
+                <p className="text-[10px] text-slate-300 font-mono uppercase tracking-widest">Secure Exam Environment v2.1.4</p>
               </div>
             </div>
           );
@@ -184,7 +184,7 @@
 
           const startExam = async () => {
             if (!student.token) { setErrorMsg("Token harus diisi!"); return; }
-            if (!isTested) { setErrorMsg("Harap tes suara terlebih dahulu!"); return; }
+            if (!isTested) { setErrorMsg("Harap Volume HP Perbesar dan Klik Tes Suara terlebih dahulu"); return; }
             setErrorMsg('');
             setIsLoading(true);
 
@@ -278,7 +278,7 @@
                     <div className="mt-4 space-y-2 text-left">
                        <p className="text-[14px] text-red-600 font-black leading-tight text-center">
                         Pastikan volume HP keras sampai terdengar suara TES SUARA.
-                      </p>
+                       </p>
                       <hr className="border-blue-100" />
                       <div className="flex items-start gap-2">
                         <i className="fa-solid fa-camera text-blue-600 mt-1 text-[10px]"></i>
@@ -313,7 +313,7 @@
           const audioCtxRef = useRef(null);
           const sirenRef = useRef(null);
           const isFinishingRef = useRef(false);
-          const initialHeightRef = useRef(window.innerHeight); // Simpan tinggi awal saat ujian mulai
+          const initialHeightRef = useRef(window.innerHeight);
           
           const [showConfirmDialog, setShowConfirmDialog] = useState(false);
           const examUrlRef = useRef(student.activeUrl);
@@ -412,19 +412,14 @@
           };
 
           const handleAcknowledgeWarning = () => {
-             // Cek apakah masih dalam mode split screen atau tinggi layar tidak normal
              const isStillResized = window.innerHeight < (initialHeightRef.current * 0.85);
-             
              if (isStillResized) {
-               // Jika masih split, ganti pesan dan biarkan modal terbuka (suara tetap bunyi)
                setExamState(prev => ({
                  ...prev,
                  warningMessage: "KEMBALI KE SATU LAYAR LAGI"
                }));
              } else {
-               // Jika sudah normal, tutup peringatan dan coba balikkan ke fullscreen
                setExamState(prev => ({ ...prev, isWarningOpen: false }));
-               
                if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
                   document.documentElement.requestFullscreen().catch(() => {});
                }
@@ -482,7 +477,6 @@
           useEffect(() => {
             const handleSecurity = (e) => {
               if (isFinishingRef.current) return;
-              
               const isHidden = document.hidden;
               const isNotFullscreen = !document.fullscreenElement;
               const isResized = window.innerHeight < (initialHeightRef.current * 0.85);
@@ -490,11 +484,9 @@
               if (isHidden || isNotFullscreen || isResized) {
                 setExamState(prev => {
                   if (prev.isWarningOpen && !isResized) return prev; 
-                  // Update pesan jika terdeteksi split screen saat modal sudah terbuka
                   if (prev.isWarningOpen && isResized) {
                     return { ...prev, warningMessage: "KEMBALI KE SATU LAYAR LAGI" };
                   }
-                  
                   if (prev.violations >= 3) return prev;
                   const newV = prev.violations + 1;
                   return { 
