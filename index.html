@@ -64,7 +64,7 @@
                     Mulai Ujian (Siswa)
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-300">v2.0.4 - Maximum Security Mode</p>
+                <p className="text-[10px] text-slate-300">v2.0.5 - Enhanced Security Mode</p>
               </div>
             </div>
           );
@@ -291,7 +291,7 @@
             }
           };
 
-          const playSiren = (loop = true) => {
+          const playSiren = () => {
             initAudio();
             if (sirenRef.current) return;
 
@@ -321,10 +321,6 @@
 
             osc.start();
             sirenRef.current = { osc, gain, interval: sirenInterval };
-
-            if (!loop) {
-              setTimeout(() => stopSiren(), 2000);
-            }
           };
 
           const stopSiren = () => {
@@ -341,8 +337,7 @@
 
           useEffect(() => {
             if (examState.isWarningOpen) {
-              // Mainkan sirine terus-menerus (looping) selama modal peringatan terbuka
-              playSiren(true);
+              playSiren();
             } else {
               stopSiren();
             }
@@ -405,15 +400,20 @@
 
           useEffect(() => {
             const handleSecurity = () => {
+              // Jika terdeteksi pindah tab atau keluar fullscreen
               if (document.hidden || !document.fullscreenElement) {
                 setExamState(prev => {
+                  // PERBAIKAN: Jika modal peringatan sudah terbuka, jangan tambah lagi!
+                  // Ini mencegah hitungan melonjak 1, 2, 3 secara instan
+                  if (prev.isWarningOpen) return prev;
+                  
                   if (prev.violations >= 3) return prev;
                   const newV = prev.violations + 1;
                   return { 
                     ...prev, 
                     violations: newV, 
                     isWarningOpen: true, 
-                    warningMessage: `Pelanggaran ${newV}` // Sekarang pesan utama adalah nomor pelanggaran
+                    warningMessage: `Pelanggaran ${newV}` 
                   };
                 });
               }
