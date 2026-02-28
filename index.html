@@ -11,22 +11,17 @@
     <!-- FontAwesome untuk Ikon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- React & ReactDOM (Diambil dari CDN) -->
+    <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Babel (Untuk menerjemahkan React di dalam browser secara otomatis) -->
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-    <!-- Tempat aplikasi akan dirender -->
     <div id="root"></div>
 
-    <!-- Kode Aplikasi -->
     <script type="text/babel">
-        // ========================================================
-        // TARUH LINK WEB APP GOOGLE SCRIPT ANDA DI BAWAH INI
-        // ========================================================
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxmQL1jc8li6--zTGFYNalcj16sy5bd2eRVe4N-iN4VLWm5cF4YogPxW2cVlj-sytST/exec';
 
         const { useState, useEffect, useRef } = React;
@@ -48,23 +43,24 @@
 
           return (
             <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center space-y-8">
-                <div onClick={handleSecretClick} className="cursor-default select-none">
-                  <i className="fa-solid fa-desktop text-blue-600 text-6xl mx-auto mb-4 transition-transform active:scale-95"></i>
-                  <h1 className="text-3xl font-bold text-slate-800 mt-4">CBT Exambro</h1>
-                  <p className="text-slate-500 mt-2">Spensasi Keren</p>
+              <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center space-y-8">
+                <div onClick={handleSecretClick} className="cursor-default select-none group">
+                  <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-active:scale-90 transition-transform">
+                    <i className="fa-solid fa-desktop text-blue-600 text-5xl"></i>
+                  </div>
+                  <h1 className="text-3xl font-black text-slate-800 tracking-tight">CBT Exambro</h1>
+                  <p className="text-blue-600 font-bold text-lg mt-1 italic">Spensasi Keren</p>
                 </div>
                 
-                <div className="space-y-4">
-                  <button 
-                    onClick={() => setView('student_login')}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
-                  >
-                    <i className="fa-solid fa-play"></i>
-                    Mulai Ujian (Siswa)
-                  </button>
-                </div>
-                <p className="text-[10px] text-slate-300">v2.0.6 - Ultra Security Mode</p>
+                <button 
+                  onClick={() => setView('student_login')}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95"
+                >
+                  <i className="fa-solid fa-play text-xl"></i>
+                  MULAI UJIAN
+                </button>
+                
+                <p className="text-[10px] text-slate-300 font-mono uppercase tracking-widest">Secure Exam Environment v2.1.0</p>
               </div>
             </div>
           );
@@ -73,8 +69,8 @@
         // --- KOMPONEN: PANEL ADMIN ---
         const AdminView = ({ settings, setSettings, setView }) => {
           const [tempSettings, setTempSettings] = useState(settings);
-          const [showSuccess, setShowSuccess] = useState(false);
           const [isSaving, setIsSaving] = useState(false);
+          const [showSuccess, setShowSuccess] = useState(false);
 
           const handleAddToken = () => {
             setTempSettings({
@@ -122,9 +118,7 @@
                 formData.append('tokensData', JSON.stringify(newSettings.tokens));
                 await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: formData });
                 setShowSuccess(true);
-              } catch (err) {
-                alert("Gagal terhubung ke server.");
-              }
+              } catch (err) { alert("Gagal kirim ke Spreadsheet."); }
               setIsSaving(false);
               setTimeout(() => setShowSuccess(false), 1500);
             } else {
@@ -135,39 +129,31 @@
 
           return (
             <div className="min-h-screen bg-slate-100 p-4 md:p-8">
-              <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
+              <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl p-6">
                 <div className="flex items-center gap-3 mb-6 border-b pb-4">
                   <i className="fa-solid fa-gear text-slate-700 text-3xl"></i>
-                  <h2 className="text-2xl font-bold text-slate-800">Pengaturan (Admin)</h2>
+                  <h2 className="text-2xl font-black text-slate-800">Panel Pengaturan Admin</h2>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <div className="flex justify-between items-center mb-4">
-                      <p className="font-bold text-blue-800 text-sm"><i className="fa-solid fa-layer-group mr-2"></i>Daftar Token & Sesi</p>
-                      <button onClick={handleAddToken} className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"><i className="fa-solid fa-plus"></i> Tambah</button>
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 mb-6">
+                  {tempSettings.tokens.map((item, index) => (
+                    <div key={index} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 relative">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input className="border p-2 rounded-lg text-sm" value={item.title} onChange={(e) => handleTokenChange(index, 'title', e.target.value)} placeholder="Judul Ujian" />
+                        <input className="border p-2 rounded-lg text-sm uppercase font-mono" value={item.token} onChange={(e) => handleTokenChange(index, 'token', e.target.value)} placeholder="TOKEN" />
+                        <input className="border p-2 rounded-lg text-sm" value={item.url} onChange={(e) => handleTokenChange(index, 'url', e.target.value)} placeholder="Link Google Form" />
+                        <input className="border p-2 rounded-lg text-sm" type="number" value={item.duration} onChange={(e) => handleTokenChange(index, 'duration', e.target.value)} placeholder="Durasi (Menit)" />
+                      </div>
+                      <button onClick={() => handleRemoveToken(index)} className="absolute -top-2 -right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg"><i className="fa-solid fa-trash text-xs"></i></button>
                     </div>
+                  ))}
+                </div>
 
-                    <div className="space-y-4">
-                      {tempSettings.tokens.map((item, index) => (
-                        <div key={index} className="bg-white p-4 rounded-lg border border-slate-200 flex flex-col gap-3 relative shadow-sm">
-                          <div className="flex flex-col sm:flex-row gap-3">
-                            <input className="flex-[2] border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" value={item.title} onChange={(e) => handleTokenChange(index, 'title', e.target.value)} placeholder="Judul Ujian" />
-                            <input className="flex-1 border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 uppercase font-mono" value={item.token} onChange={(e) => handleTokenChange(index, 'token', e.target.value)} placeholder="TOKEN" />
-                          </div>
-                          <div className="flex flex-col sm:flex-row gap-3">
-                            <input className="flex-[2] border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" value={item.url} onChange={(e) => handleTokenChange(index, 'url', e.target.value)} placeholder="Link Form" />
-                            <input className="flex-1 border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" type="number" value={item.duration} onChange={(e) => handleTokenChange(index, 'duration', e.target.value)} placeholder="Menit" />
-                          </div>
-                          <button onClick={() => handleRemoveToken(index)} className="absolute -top-3 -right-3 bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center shadow-md border border-white"><i className="fa-solid fa-trash text-xs"></i></button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-4 flex gap-3">
-                    <button onClick={handleSave} disabled={isSaving} className={`flex-1 ${isSaving ? 'bg-slate-500' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold py-3 rounded-xl`}>{isSaving ? 'Menyimpan...' : showSuccess ? 'Tersimpan!' : 'Simpan Pengaturan'}</button>
-                    <button onClick={() => setView('home')} className="bg-slate-200 text-slate-700 font-semibold py-3 px-6 rounded-xl">Keluar</button>
+                <div className="flex flex-col gap-3">
+                  <button onClick={handleAddToken} className="w-full bg-slate-200 hover:bg-slate-300 py-3 rounded-xl font-bold"><i className="fa-solid fa-plus mr-2"></i>Tambah Baris Baru</button>
+                  <div className="flex gap-3">
+                    <button onClick={handleSave} disabled={isSaving} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg">{isSaving ? 'Menyimpan...' : showSuccess ? 'Berhasil!' : 'Simpan ke Spreadsheet'}</button>
+                    <button onClick={() => setView('home')} className="bg-slate-300 text-slate-800 font-bold px-6 py-4 rounded-2xl hover:bg-slate-400">Keluar</button>
                   </div>
                 </div>
               </div>
@@ -180,9 +166,25 @@
           const [isLoading, setIsLoading] = useState(false);
           const [statusMsg, setStatusMsg] = useState('');
           const [errorMsg, setErrorMsg] = useState('');
+          const [isTested, setIsTested] = useState(false);
+
+          const playTestSound = () => {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.5, ctx.currentTime);
+            osc.start();
+            osc.stop(ctx.currentTime + 1);
+            setIsTested(true);
+          };
 
           const startExam = async () => {
-            if (!student.token) { setErrorMsg("Harap isi Token Ujian!"); return; }
+            if (!student.token) { setErrorMsg("Token harus diisi!"); return; }
+            if (!isTested) { setErrorMsg("Harap tes suara terlebih dahulu!"); return; }
             setErrorMsg('');
             setIsLoading(true);
 
@@ -194,11 +196,11 @@
                 const data = await response.json();
                 if (data && data.tokensData) {
                   let parsed = [];
-                  try { if (data.tokensData !== "undefined" && data.tokensData !== "null") parsed = JSON.parse(data.tokensData); } catch (e) {}
+                  try { if (data.tokensData !== "undefined") parsed = JSON.parse(data.tokensData); } catch (e) {}
                   latestTokens = Array.isArray(parsed) ? parsed : [];
                   setSettings({ tokens: latestTokens });
                 }
-              } catch (error) {}
+              } catch (e) {}
             }
 
             const enteredToken = student.token.trim().toUpperCase();
@@ -210,7 +212,7 @@
               return;
             }
             
-            setStatusMsg("Memeriksa kamera...");
+            setStatusMsg("Menyiapkan kamera...");
             setStudent({ 
               ...student, 
               activeUrl: matchedExam.url,
@@ -222,7 +224,7 @@
               const stream = await navigator.mediaDevices.getUserMedia({ video: true });
               stream.getTracks().forEach(track => track.stop());
             } catch (err) {
-              setErrorMsg("Akses kamera WAJIB diizinkan!");
+              setErrorMsg("Kamera WAJIB diizinkan! Anda tidak bisa ikut ujian tanpa izin kamera.");
               setIsLoading(false);
               return;
             }
@@ -241,30 +243,60 @@
 
           return (
             <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-slate-800">Masuk Ujian</h2>
-                  <p className="text-slate-500">Masukkan token ujian Anda</p>
+              <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+                <div className="text-center mb-6">
+                  <h2 className="text-2xl font-black text-slate-800">Masuk Ujian</h2>
+                  <p className="text-slate-500">Silakan masukkan kode token Anda</p>
                 </div>
+
                 <div className="space-y-4">
-                  {errorMsg && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm text-center">{errorMsg}</div>}
+                  {errorMsg && <div className="bg-red-100 text-red-700 p-3 rounded-xl text-center font-bold text-sm border border-red-200">{errorMsg}</div>}
+                  
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1 text-center">Token Ujian</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase mb-1 ml-1 tracking-widest">Kode Token</label>
                     <input 
                       type="text" 
-                      className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 uppercase font-mono tracking-widest text-center text-lg font-bold"
+                      className="w-full border-2 border-slate-200 rounded-2xl p-4 outline-none focus:border-blue-500 uppercase font-mono text-center text-2xl font-black tracking-[0.5em]"
                       value={student.token}
                       onChange={(e) => setStudent({...student, token: e.target.value})}
                       placeholder=""
                       disabled={isLoading}
                     />
                   </div>
-                  <div className="pt-4 flex gap-3">
-                    <button onClick={startExam} disabled={isLoading} className={`flex-1 ${isLoading ? 'bg-slate-400' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-all`}>
-                      {isLoading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-play"></i>}
-                      <span>{isLoading ? (statusMsg || 'Memproses...') : 'Mulai Kerjakan'}</span>
+
+                  <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
+                    <p className="text-sm text-blue-900 font-black mb-3 text-center uppercase tracking-wider">Syarat Mengikuti Ujian:</p>
+                    
+                    <button 
+                      onClick={playTestSound}
+                      className={`w-full py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all ${isTested ? 'bg-green-100 text-green-700 border-2 border-green-500' : 'bg-blue-600 text-white shadow-lg active:scale-95'}`}
+                    >
+                      <i className={`fa-solid ${isTested ? 'fa-circle-check' : 'fa-volume-high'}`}></i>
+                      {isTested ? 'VOLUME SUDAH OK' : 'TES SUARA'}
                     </button>
-                    <button onClick={() => setView('home')} className="bg-slate-200 text-slate-700 p-3 rounded-xl px-4 transition-all" disabled={isLoading}><i className="fa-solid fa-right-from-bracket"></i></button>
+                    
+                    <div className="mt-4 space-y-2 text-left">
+                       <p className="text-[14px] text-red-600 font-black leading-tight text-center">
+                        Pastikan volume HP keras sampai terdengar suara TES SUARA.
+                      </p>
+                      <hr className="border-blue-100" />
+                      <div className="flex items-start gap-2">
+                        <i className="fa-solid fa-camera text-blue-600 mt-1 text-[10px]"></i>
+                        <p className="text-[11px] text-blue-800 font-bold leading-tight">Izin Kamera: Berikan izin kamera saat diminta, karena jika tidak diizinkan anda tidak bisa mengikuti ujian.</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <i className="fa-solid fa-triangle-exclamation text-red-500 mt-1 text-[10px]"></i>
+                        <p className="text-[11px] text-blue-800 font-bold leading-tight">Pelanggaran: Dilarang buka aplikasi lain atau split screen.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2 flex gap-3">
+                    <button onClick={startExam} disabled={isLoading} className={`flex-1 ${isLoading ? 'bg-slate-400' : 'bg-green-600 hover:bg-green-700'} text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all text-lg`}>
+                      {isLoading ? <i className="fa-solid fa-spinner fa-spin mr-2"></i> : <i className="fa-solid fa-play mr-2"></i>}
+                      {isLoading ? (statusMsg || 'Memproses...') : 'MULAI KERJAKAN'}
+                    </button>
+                    <button onClick={() => setView('home')} className="bg-slate-200 text-slate-700 p-4 rounded-2xl hover:bg-slate-300 transition-all" disabled={isLoading}><i className="fa-solid fa-arrow-left text-xl"></i></button>
                   </div>
                 </div>
               </div>
@@ -278,8 +310,7 @@
           const streamRef = useRef(null);
           const audioCtxRef = useRef(null);
           const sirenRef = useRef(null);
-          const isFinishingRef = useRef(false); // FLAG: Mencegah deteksi pelanggaran saat keluar normal
-          
+          const isFinishingRef = useRef(false);
           const [showConfirmDialog, setShowConfirmDialog] = useState(false);
           const examUrlRef = useRef(student.activeUrl);
           const [camPos, setCamPos] = useState({ x: 0, y: 0 });
@@ -293,85 +324,61 @@
             }
           };
 
-          // Efek suara SELESAI yang menggema dan keras
           const playFinishSound = () => {
             initAudio();
             const ctx = audioCtxRef.current;
             const now = ctx.currentTime;
             
-            const playGrandNote = (freq, start, duration) => {
+            const playNote = (freq, start, duration) => {
               const osc = ctx.createOscillator();
               const gain = ctx.createGain();
-              
               osc.connect(gain);
               gain.connect(ctx.destination);
-              
-              // Paduan gelombang agar suara lebih tebal (sawtooth + sine)
-              osc.type = 'sawtooth'; 
-              
-              // Volume Utama yang Keras
+              osc.type = 'sawtooth';
               gain.gain.setValueAtTime(0, start);
               gain.gain.linearRampToValueAtTime(0.8, start + 0.05);
               gain.gain.exponentialRampToValueAtTime(0.01, start + duration);
-              
               osc.frequency.setValueAtTime(freq, start);
               osc.start(start);
               osc.stop(start + duration);
 
-              // SIMULASI GEMA (Pantulan suara dengan delay)
-              for(let i=1; i<=3; i++) {
-                const echoGain = ctx.createGain();
-                const echoOsc = ctx.createOscillator();
-                echoOsc.connect(echoGain);
-                echoGain.connect(ctx.destination);
-                
-                echoOsc.type = 'sine';
-                echoOsc.frequency.setValueAtTime(freq, start + (i * 0.15));
-                echoGain.gain.setValueAtTime(0, start + (i * 0.15));
-                echoGain.gain.linearRampToValueAtTime(0.3 / i, start + (i * 0.15) + 0.05);
-                echoGain.gain.exponentialRampToValueAtTime(0.01, start + (i * 0.15) + duration);
-                
-                echoOsc.start(start + (i * 0.15));
-                echoOsc.stop(start + (i * 0.15) + duration);
+              for(let i=1; i<=3; i++){
+                const eOsc = ctx.createOscillator();
+                const eGain = ctx.createGain();
+                eOsc.connect(eGain); eGain.connect(ctx.destination);
+                eOsc.type = 'sine';
+                eOsc.frequency.setValueAtTime(freq, start + (i * 0.1));
+                eGain.gain.setValueAtTime(0, start + (i * 0.1));
+                eGain.gain.linearRampToValueAtTime(0.3/i, start + (i * 0.1) + 0.05);
+                eGain.gain.exponentialRampToValueAtTime(0.01, start + (i * 0.1) + duration);
+                eOsc.start(start + (i * 0.1)); eOsc.stop(start + (i * 0.1) + duration);
               }
             };
 
-            // Melodi Megah Beruntun: C5 -> G5 -> C6
-            playGrandNote(523.25, now, 1.5);        // C5
-            playGrandNote(783.99, now + 0.2, 1.5);  // G5
-            playGrandNote(1046.50, now + 0.4, 2.0); // C6
+            playNote(523.25, now, 1.2);
+            playNote(659.25, now + 0.2, 1.2);
+            playNote(783.99, now + 0.4, 1.5);
+            playNote(1046.50, now + 0.6, 2.0);
           };
 
           const playSiren = () => {
             initAudio();
             if (sirenRef.current) return;
-
             const ctx = audioCtxRef.current;
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
-            
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
+            osc.connect(gain); gain.connect(ctx.destination);
             osc.type = 'sawtooth';
             gain.gain.setValueAtTime(0.5, ctx.currentTime);
-            
-            const now = ctx.currentTime;
-            osc.frequency.setValueAtTime(440, now);
-            
             let i = 0;
-            const sirenInterval = setInterval(() => {
-              if (!sirenRef.current) {
-                clearInterval(sirenInterval);
-                return;
-              }
+            const intv = setInterval(() => {
+              if (!sirenRef.current) { clearInterval(intv); return; }
               const freq = 440 + Math.sin(i) * 200;
               osc.frequency.setTargetAtTime(freq, ctx.currentTime, 0.05);
               i += 0.5;
             }, 50);
-
             osc.start();
-            sirenRef.current = { osc, gain, interval: sirenInterval };
+            sirenRef.current = { osc, gain, interval: intv };
           };
 
           const stopSiren = () => {
@@ -387,28 +394,16 @@
           };
 
           useEffect(() => {
-            if (examState.isWarningOpen) {
-              playSiren();
-            } else {
-              stopSiren();
-            }
+            if (examState.isWarningOpen) playSiren();
+            else stopSiren();
           }, [examState.isWarningOpen]);
 
           const handleFinish = () => {
-            // AKTIFKAN MODE KELUAR: Abaikan sensor keamanan agar tidak dianggap pelanggaran
             isFinishingRef.current = true;
-            
             stopSiren();
-            playFinishSound(); // Memainkan suara gema keras
-            
+            playFinishSound();
             if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
-            
-            // Keluar dari fullscreen tanpa memicu deteksi kecurangan
-            if (document.exitFullscreen && document.fullscreenElement) {
-                document.exitFullscreen().catch(() => {});
-            }
-            
-            // Berikan jeda agar suara megah terdengar sedikit sebelum pindah layar
+            if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(()=>{});
             setTimeout(() => setView('finished'), 1000);
           };
 
@@ -462,20 +457,13 @@
 
           useEffect(() => {
             const handleSecurity = () => {
-              // PERBAIKAN: Jika sedang proses keluar (isFinishingRef), abaikan sensor
               if (isFinishingRef.current) return;
-
               if (document.hidden || !document.fullscreenElement) {
                 setExamState(prev => {
                   if (prev.isWarningOpen) return prev;
                   if (prev.violations >= 3) return prev;
                   const newV = prev.violations + 1;
-                  return { 
-                    ...prev, 
-                    violations: newV, 
-                    isWarningOpen: true, 
-                    warningMessage: `Pelanggaran ${newV}` 
-                  };
+                  return { ...prev, violations: newV, isWarningOpen: true, warningMessage: `Pelanggaran ${newV}` };
                 });
               }
             };
@@ -498,15 +486,13 @@
             <div className="h-screen w-screen flex flex-col bg-slate-100 overflow-hidden relative select-none">
               
               {showConfirmDialog && (
-                <div className="absolute inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
-                  <div className="bg-white rounded-2xl p-8 max-sm w-full text-center shadow-2xl border-4 border-red-500 transform scale-110">
-                    <i className="fa-solid fa-triangle-exclamation text-red-600 text-5xl mb-4 animate-pulse"></i>
-                    <h3 className="text-xl font-black text-red-600 mb-6 leading-tight uppercase tracking-tight">
-                      Apakah Anda Sudah Klik KIRIM atau SUBMIT ?
-                    </h3>
+                <div className="absolute inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 backdrop-blur-md">
+                  <div className="bg-white rounded-3xl p-8 max-sm w-full text-center shadow-2xl border-4 border-red-500 scale-110">
+                    <i className="fa-solid fa-triangle-exclamation text-red-600 text-6xl mb-4 animate-pulse"></i>
+                    <h3 className="text-xl font-black text-red-600 mb-6 uppercase tracking-tight leading-tight">Apakah Anda Sudah Klik KIRIM atau SUBMIT ?</h3>
                     <div className="flex gap-4">
-                      <button onClick={() => setShowConfirmDialog(false)} className="flex-1 bg-slate-200 py-3 rounded-xl font-bold hover:bg-slate-300 transition-colors">BELUM</button>
-                      <button onClick={handleFinish} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-red-700 transition-all">SUDAH</button>
+                      <button onClick={() => setShowConfirmDialog(false)} className="flex-1 bg-slate-200 py-3 rounded-2xl font-black uppercase text-sm">BELUM</button>
+                      <button onClick={handleFinish} className="flex-1 bg-red-600 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-sm">SUDAH</button>
                     </div>
                   </div>
                 </div>
@@ -515,9 +501,9 @@
               {examState.isWarningOpen && (
                 <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4 text-white text-center">
                   <div className="max-w-md bg-white p-8 rounded-3xl shadow-2xl text-slate-800 border-[10px] border-red-500">
-                    <i className="fa-solid fa-triangle-exclamation text-red-600 text-7xl mb-4 animate-bounce"></i>
-                    <h2 className="text-5xl font-black mb-2 text-red-600 uppercase tracking-tighter">{examState.warningMessage}</h2>
-                    <p className="text-slate-600 mb-6 font-bold text-lg leading-snug">Anda terdeteksi keluar dari aplikasi ujian!</p>
+                    <i className="fa-solid fa-triangle-exclamation text-red-600 text-8xl mb-4 animate-bounce"></i>
+                    <h2 className="text-6xl font-black mb-2 text-red-600 uppercase">{examState.warningMessage}</h2>
+                    <p className="text-slate-600 mb-6 font-bold text-xl">Anda terdeteksi keluar dari aplikasi ujian!</p>
                     <button onClick={examState.violations >= 3 ? handleFinish : () => setExamState(p => ({...p, isWarningOpen: false}))} className="w-full bg-red-600 text-white py-4 rounded-2xl font-black text-2xl shadow-xl active:scale-95 transition-all">
                       {examState.violations >= 3 ? 'KUMPULKAN SEKARANG' : 'SAYA MENGERTI'}
                     </button>
@@ -527,16 +513,16 @@
 
               <header className="bg-white shadow-md z-10 px-6 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="bg-blue-100 text-blue-800 p-2 rounded-lg font-bold text-xl">{formatTime(examState.timeRemaining)}</div>
-                  <h1 className="font-bold text-slate-800">{student.activeTitle}</h1>
+                  <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-xl font-black text-2xl border-2 border-blue-200">{formatTime(examState.timeRemaining)}</div>
+                  <h1 className="font-black text-slate-800 text-lg uppercase tracking-tight truncate max-w-[150px] md:max-w-none">{student.activeTitle}</h1>
                 </div>
-                <button onClick={() => setShowConfirmDialog(true)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-green-700 transition-colors">SELESAI</button>
+                <button onClick={() => setShowConfirmDialog(true)} className="bg-green-600 text-white px-6 py-2 rounded-xl font-black shadow-md hover:bg-green-700 active:scale-95 transition-all">SELESAI</button>
               </header>
 
               <main className="flex-1 relative bg-slate-200 p-2">
-                <iframe src={examUrlRef.current} className="w-full h-full border-0 rounded-xl bg-white shadow-inner"></iframe>
+                <iframe src={examUrlRef.current} className="w-full h-full border-0 rounded-2xl bg-white shadow-2xl"></iframe>
                 <div 
-                  className="absolute top-4 right-6 w-32 h-24 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-[100] cursor-move"
+                  className="absolute top-4 right-6 w-32 h-24 bg-black rounded-2xl shadow-2xl border-4 border-slate-700 overflow-hidden z-[100] cursor-move flex items-center justify-center"
                   style={{ transform: `translate(${camPos.x}px, ${camPos.y}px)`, touchAction: 'none' }}
                   onMouseDown={handleDragStart} onTouchStart={handleDragStart}
                 >
@@ -549,16 +535,18 @@
 
         const FinishedView = () => (
           <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 text-center">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-              <i className="fa-solid fa-circle-check text-green-600 text-6xl mb-4"></i>
-              <h2 className="text-3xl font-bold text-slate-800 mb-2">Selesai!</h2>
-              <p className="text-slate-600 mb-8 font-medium">Jawaban Anda telah terekam dalam sistem.</p>
+            <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full">
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i className="fa-solid fa-circle-check text-green-600 text-6xl"></i>
+              </div>
+              <h2 className="text-3xl font-black text-slate-800 mb-2">Ujian Selesai!</h2>
+              <p className="text-slate-600 mb-10 font-medium">Terima kasih, lembar jawaban Anda telah berhasil kami simpan.</p>
               <button 
                 onClick={() => {
                   window.close();
                   setTimeout(() => { window.location.href = "about:blank"; }, 100);
                 }} 
-                className="w-full bg-red-600 text-white font-black py-4 rounded-xl shadow-md uppercase tracking-widest active:scale-95 transition-all"
+                className="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase tracking-widest active:scale-95 transition-all"
               >
                 Keluar Aplikasi
               </button>
