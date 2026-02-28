@@ -32,35 +32,47 @@
         const { useState, useEffect, useRef } = React;
 
         // --- KOMPONEN: LAYAR BERANDA ---
-        const HomeView = ({ setView }) => (
-          <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center space-y-8">
-              <div>
-                <i className="fa-solid fa-desktop text-blue-600 text-6xl mx-auto mb-4"></i>
-                <h1 className="text-3xl font-bold text-slate-800 mt-4">CBT Exambro</h1>
-                <p className="text-slate-500 mt-2">Sistem Ujian Aman Berbasis Web</p>
-              </div>
-              
-              <div className="space-y-4">
-                <button 
-                  onClick={() => setView('student_login')}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
-                >
-                  <i className="fa-solid fa-play"></i>
-                  Mulai Ujian (Siswa)
-                </button>
+        const HomeView = ({ setView }) => {
+          const [secretClicks, setSecretClicks] = useState(0);
+
+          // Fungsi untuk akses admin tersembunyi (Klik ikon 5x)
+          const handleSecretClick = () => {
+            const newCount = secretClicks + 1;
+            if (newCount >= 5) {
+              setView('admin');
+              setSecretClicks(0);
+            } else {
+              setSecretClicks(newCount);
+              // Reset hitungan jika tidak diklik lagi dalam 2 detik
+              setTimeout(() => setSecretClicks(0), 2000);
+            }
+          };
+
+          return (
+            <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center space-y-8">
+                <div onClick={handleSecretClick} className="cursor-default select-none">
+                  <i className="fa-solid fa-desktop text-blue-600 text-6xl mx-auto mb-4 transition-transform active:scale-95"></i>
+                  <h1 className="text-3xl font-bold text-slate-800 mt-4">CBT Exambro</h1>
+                  <p className="text-slate-500 mt-2">Spensasi Keren</p>
+                </div>
                 
-                <button 
-                  onClick={() => setView('admin')}
-                  className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
-                >
-                  <i className="fa-solid fa-gear"></i>
-                  Panel Admin
-                </button>
+                <div className="space-y-4">
+                  <button 
+                    onClick={() => setView('student_login')}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all"
+                  >
+                    <i className="fa-solid fa-play"></i>
+                    Mulai Ujian (Siswa)
+                  </button>
+                  
+                  {/* Tombol Admin dihapus dari UI publik agar tidak terlihat siswa */}
+                </div>
+                <p className="text-[10px] text-slate-300">v2.0.1 - Secure Mode Enabled</p>
               </div>
             </div>
-          </div>
-        );
+          );
+        };
 
         // --- KOMPONEN: PANEL ADMIN ---
         const AdminView = ({ settings, setSettings, setView }) => {
@@ -68,7 +80,6 @@
           const [showSuccess, setShowSuccess] = useState(false);
           const [isSaving, setIsSaving] = useState(false);
 
-          // Fungsi menambah token baru dengan struktur lengkap (judul, token, link, durasi)
           const handleAddToken = () => {
             setTempSettings({
               ...tempSettings,
@@ -76,14 +87,12 @@
             });
           };
 
-          // Fungsi mengubah nilai token
           const handleTokenChange = (index, field, value) => {
             const newTokens = [...tempSettings.tokens];
             newTokens[index][field] = value;
             setTempSettings({ ...tempSettings, tokens: newTokens });
           };
 
-          // Fungsi menghapus token
           const handleRemoveToken = (index) => {
             const newTokens = [...tempSettings.tokens];
             newTokens.splice(index, 1);
@@ -91,7 +100,6 @@
           };
 
           const handleSave = async () => {
-            // Helper untuk format URL agar menjadi iframe Google Forms yg rapi
             const formatUrl = (url) => {
               if (!url) return "";
               if (url.includes('docs.google.com/forms') && !url.includes('embedded=true')) {
@@ -100,50 +108,32 @@
               return url;
             };
             
-            // Format URL di setiap token sebelum disimpan
             const formattedTokens = tempSettings.tokens.map(t => ({
               title: t.title.trim() || 'Ujian CBT Exambro',
               token: t.token.trim(),
               url: formatUrl(t.url),
               duration: parseInt(t.duration) || 60
-            })).filter(t => t.token !== '' && t.url !== ''); // Jangan simpan yang kosong
+            })).filter(t => t.token !== '' && t.url !== '');
 
-            const newSettings = { 
-              ...tempSettings, 
-              tokens: formattedTokens
-            };
-
+            const newSettings = { ...tempSettings, tokens: formattedTokens };
             setSettings(newSettings);
             localStorage.setItem('exambro_settings', JSON.stringify(newSettings));
             
-            // Logika Penyimpanan ke Google Spreadsheet
             if (GOOGLE_SCRIPT_URL !== '') {
               setIsSaving(true);
               try {
                 const formData = new URLSearchParams();
                 formData.append('tokensData', JSON.stringify(newSettings.tokens));
-
-                await fetch(GOOGLE_SCRIPT_URL, {
-                  method: 'POST',
-                  body: formData,
-                });
-                
+                await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: formData });
                 setShowSuccess(true);
               } catch (err) {
-                console.warn("Gagal terhubung ke Google Script:", err);
-                alert("Pengaturan tersimpan di memori perangkat, tetapi gagal terkirim ke Spreadsheet.");
-                setShowSuccess(true);
+                alert("Pengaturan gagal terkirim ke Spreadsheet.");
               }
               setIsSaving(false);
-              setTimeout(() => {
-                setShowSuccess(false);
-              }, 1500);
+              setTimeout(() => setShowSuccess(false), 1500);
             } else {
-              // Jika URL Script belum diisi, simpan ke lokal saja
               setShowSuccess(true);
-              setTimeout(() => {
-                setShowSuccess(false);
-              }, 1500);
+              setTimeout(() => setShowSuccess(false), 1500);
             }
           };
 
@@ -154,17 +144,8 @@
                   <i className="fa-solid fa-gear text-slate-700 text-3xl"></i>
                   <h2 className="text-2xl font-bold text-slate-800">Pengaturan Ujian (Admin)</h2>
                 </div>
-                
-                {GOOGLE_SCRIPT_URL === '' && (
-                  <div className="bg-yellow-100 text-yellow-800 p-3 rounded-lg text-sm mb-5 border border-yellow-200">
-                    <i className="fa-solid fa-circle-info mr-2"></i>
-                    <strong>Mode Offline:</strong> Anda belum memasukkan URL Web App Google Script ke dalam kode HTML. Pengaturan hanya akan tersimpan di laptop ini.
-                  </div>
-                )}
 
                 <div className="space-y-6">
-                  
-                  {/* --- BAGIAN PENGATURAN TOKEN (PER-SESI) --- */}
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <div className="flex justify-between items-center mb-4">
                       <p className="font-bold text-blue-800 text-sm">
@@ -180,12 +161,11 @@
 
                     <div className="space-y-4">
                       {tempSettings.tokens.length === 0 && (
-                        <p className="text-sm text-slate-500 text-center italic py-4">Belum ada sesi/token. Klik "Tambah Sesi" untuk membuat.</p>
+                        <p className="text-sm text-slate-500 text-center italic py-4">Belum ada sesi/token.</p>
                       )}
                       
                       {tempSettings.tokens.map((item, index) => (
                         <div key={index} className="bg-white p-4 rounded-lg border border-slate-200 flex flex-col gap-3 relative shadow-sm">
-                          
                           <div className="flex flex-col sm:flex-row gap-3">
                             <div className="w-full sm:w-2/3">
                               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Judul Ujian</label>
@@ -194,7 +174,7 @@
                                 className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                 value={item.title || ''}
                                 onChange={(e) => handleTokenChange(index, 'title', e.target.value)}
-                                placeholder="Misal: MTK Kelas 7"
+                                placeholder="MTK Kelas 7"
                               />
                             </div>
                             <div className="w-full sm:w-1/3">
@@ -204,20 +184,17 @@
                                 className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono"
                                 value={item.token}
                                 onChange={(e) => handleTokenChange(index, 'token', e.target.value)}
-                                placeholder="Misal: MTK01"
                               />
                             </div>
                           </div>
-
                           <div className="flex flex-col sm:flex-row gap-3">
                             <div className="w-full sm:w-2/3">
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Link Soal (Google Form)</label>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Link Soal</label>
                               <input 
                                 type="text" 
                                 className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                 value={item.url}
                                 onChange={(e) => handleTokenChange(index, 'url', e.target.value)}
-                                placeholder="https://docs.google.com/forms/..."
                               />
                             </div>
                             <div className="w-full sm:w-1/3">
@@ -227,15 +204,12 @@
                                 className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                 value={item.duration || ''}
                                 onChange={(e) => handleTokenChange(index, 'duration', parseInt(e.target.value) || 0)}
-                                placeholder="60"
                               />
                             </div>
                           </div>
-
                           <button 
                             onClick={() => handleRemoveToken(index)}
                             className="absolute -top-3 -right-3 bg-red-100 hover:bg-red-500 text-red-600 hover:text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-md border border-white"
-                            title="Hapus Token"
                           >
                             <i className="fa-solid fa-trash text-xs"></i>
                           </button>
@@ -250,14 +224,9 @@
                       disabled={isSaving}
                       className={`flex-1 ${isSaving ? 'bg-slate-500' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold py-3 px-6 rounded-xl transition-all`}
                     >
-                      {isSaving ? (<span><i className="fa-solid fa-spinner fa-spin mr-2"></i>Menyimpan...</span>) : showSuccess ? 'Tersimpan!' : 'Simpan Pengaturan'}
+                      {isSaving ? 'Menyimpan...' : showSuccess ? 'Tersimpan!' : 'Simpan Pengaturan'}
                     </button>
-                    <button 
-                      onClick={() => setView('home')}
-                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-xl transition-all"
-                    >
-                      Keluar
-                    </button>
+                    <button onClick={() => setView('home')} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-xl transition-all">Keluar</button>
                   </div>
                 </div>
               </div>
@@ -272,55 +241,39 @@
           const [errorMsg, setErrorMsg] = useState('');
 
           const startExam = async () => {
+            if (!student.token) { setErrorMsg("Harap isi Token Ujian!"); return; }
             setErrorMsg('');
-            setStatusMsg('');
-            
-            // Validasi Input Dasar
-            if (!student.token) {
-              setErrorMsg("Harap isi Token Ujian!");
-              return;
-            }
-
             setIsLoading(true);
 
-            // --- SOLUSI ON-DEMAND: Tarik data terbaru dari Spreadsheet saat tombol diklik ---
             let latestTokens = settings.tokens;
             if (GOOGLE_SCRIPT_URL !== '') {
               setStatusMsg("Menghubungkan ke server...");
               try {
                 const response = await fetch(GOOGLE_SCRIPT_URL);
                 const data = await response.json();
-                
                 if (data && data.tokensData) {
-                  let parsedTokens = [];
+                  let parsed = [];
                   try {
                     if (data.tokensData !== "undefined" && data.tokensData !== "null") {
-                      parsedTokens = typeof data.tokensData === 'string' ? JSON.parse(data.tokensData) : data.tokensData;
+                      parsed = typeof data.tokensData === 'string' ? JSON.parse(data.tokensData) : data.tokensData;
                     }
-                  } catch (e) { console.error("Gagal parsing token", e); }
-
-                  latestTokens = Array.isArray(parsedTokens) ? parsedTokens : [];
-                  // Simpan ke state global agar data terbaru tersimpan di App
+                  } catch (e) {}
+                  latestTokens = Array.isArray(parsed) ? parsed : [];
                   setSettings({ tokens: latestTokens });
                 }
-              } catch (error) {
-                console.warn("Gagal sinkronisasi data terbaru. Menggunakan data cache.");
-              }
+              } catch (error) { console.warn("Sync failed."); }
             }
 
-            // Pencocokan Token dengan data yang SUDAH DIPERBARUI
             const enteredToken = student.token.trim().toUpperCase();
             const matchedExam = latestTokens.find(t => t.token.toUpperCase() === enteredToken);
 
             if (!matchedExam) {
-              setErrorMsg("Token tidak valid! Pastikan token benar atau tanyakan ke Guru.");
+              setErrorMsg("Token tidak valid!");
               setIsLoading(false);
               return;
             }
             
             setStatusMsg("Memeriksa kamera...");
-            
-            // Simpan link dan judul yang cocok dengan token ke data student
             setStudent({ 
               ...student, 
               activeUrl: matchedExam.url,
@@ -328,25 +281,16 @@
               activeDuration: parseInt(matchedExam.duration) || 60
             });
 
-            // Meminta Izin Kamera Sebelum Masuk Ujian
             try {
               const stream = await navigator.mediaDevices.getUserMedia({ video: true });
               stream.getTracks().forEach(track => track.stop());
             } catch (err) {
-              console.warn("Kamera diblokir/ditolak:", err);
-              setErrorMsg("Akses kamera WAJIB diizinkan untuk dapat mengikuti ujian ini!");
+              setErrorMsg("Akses kamera WAJIB diizinkan!");
               setIsLoading(false);
               return;
             }
 
-            // Meminta akses Fullscreen
-            try {
-              if (document.documentElement.requestFullscreen) {
-                await document.documentElement.requestFullscreen();
-              }
-            } catch (err) {
-              console.warn("Fullscreen diblokir.");
-            }
+            try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch (err) {}
 
             setExamState({
               timeRemaining: (parseInt(matchedExam.duration) || 60) * 60,
@@ -365,14 +309,8 @@
                   <h2 className="text-2xl font-bold text-slate-800">Masuk Ujian</h2>
                   <p className="text-slate-500">Masukkan token ujian Anda</p>
                 </div>
-
                 <div className="space-y-4">
-                  {errorMsg && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-sm" role="alert">
-                      <span className="block sm:inline">{errorMsg}</span>
-                    </div>
-                  )}
-
+                  {errorMsg && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-sm">{errorMsg}</div>}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Token Ujian</label>
                     <input 
@@ -380,42 +318,28 @@
                       className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 uppercase font-mono tracking-widest text-center text-lg font-bold"
                       value={student.token}
                       onChange={(e) => setStudent({...student, token: e.target.value})}
-                      placeholder="Masukkan token..."
+                      placeholder="MTK01"
                       disabled={isLoading}
                     />
                   </div>
-                  
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6 text-sm text-yellow-800">
-                    <p className="font-bold flex items-center gap-2 mb-1">
-                      <i className="fa-solid fa-shield-halved"></i> Perhatian Penting!
-                    </p>
-                    <ul className="list-disc pl-5 space-y-2">
+                    <p className="font-bold flex items-center gap-2 mb-1"><i className="fa-solid fa-shield-halved"></i> Perhatian!</p>
+                    <ul className="list-disc pl-5 space-y-1 text-xs">
                       <li>Sistem akan mengunci layar secara otomatis.</li>
                       <li>Kamera aktif untuk pemantauan ujian.</li>
-                      <li>Membuka tab lain dianggap sebagai pelanggaran.</li>
+                      <li>Membuka tab lain dianggap pelanggaran.</li>
                     </ul>
                   </div>
-
                   <div className="pt-4 flex gap-3">
                     <button 
                       onClick={startExam}
                       disabled={isLoading}
-                      className={`flex-1 ${isLoading ? 'bg-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all`}
+                      className={`flex-1 ${isLoading ? 'bg-slate-400' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all`}
                     >
-                      {isLoading ? (
-                        <i className="fa-solid fa-spinner fa-spin"></i>
-                      ) : (
-                        <i className="fa-solid fa-play"></i>
-                      )}
+                      {isLoading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-play"></i>}
                       <span>{isLoading ? (statusMsg || 'Memproses...') : 'Mulai Kerjakan'}</span>
                     </button>
-                    <button 
-                      onClick={() => setView('home')}
-                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-3 rounded-xl transition-all px-4"
-                      disabled={isLoading}
-                    >
-                      <i className="fa-solid fa-right-from-bracket"></i>
-                    </button>
+                    <button onClick={() => setView('home')} className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-3 rounded-xl px-4" disabled={isLoading}><i className="fa-solid fa-right-from-bracket"></i></button>
                   </div>
                 </div>
               </div>
@@ -424,47 +348,18 @@
         };
 
         // --- KOMPONEN: INTERFACE UJIAN UTAMA ---
-        const ExamView = ({ settings, student, examState, setExamState, setView }) => {
+        const ExamView = ({ student, examState, setExamState, setView }) => {
           const videoRef = useRef(null);
           const streamRef = useRef(null);
           const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-          
           const examUrlRef = useRef(student.activeUrl);
-
-          // State untuk Drag Kamera
           const [camPos, setCamPos] = useState({ x: 0, y: 0 });
           const [isDraggingCam, setIsDraggingCam] = useState(false);
           const dragStart = useRef({ x: 0, y: 0 });
 
-          const playFinishSound = () => {
-            try {
-              const AudioContext = window.AudioContext || window.webkitAudioContext;
-              const ctx = new AudioContext();
-              const osc1 = ctx.createOscillator();
-              const gain1 = ctx.createGain();
-              osc1.connect(gain1);
-              gain1.connect(ctx.destination);
-              osc1.frequency.value = 523.25; 
-              gain1.gain.setValueAtTime(0.1, ctx.currentTime);
-              osc1.start(ctx.currentTime);
-              osc1.stop(ctx.currentTime + 0.15);
-              const osc2 = ctx.createOscillator();
-              const gain2 = ctx.createGain();
-              osc2.connect(gain2);
-              gain2.connect(ctx.destination);
-              osc2.frequency.value = 659.25; 
-              gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.2);
-              osc2.start(ctx.currentTime + 0.2);
-              osc2.stop(ctx.currentTime + 0.5);
-            } catch (e) {
-              console.log("Web Audio API tidak didukung.");
-            }
-          };
-
           const handleFinish = () => {
-            playFinishSound();
             if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
-            if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(err => console.warn(err));
+            if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
             setView('finished');
           };
 
@@ -478,7 +373,6 @@
           useEffect(() => {
             const handleDragMove = (e) => {
               if (!isDraggingCam) return;
-              e.preventDefault(); 
               const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
               const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
               setCamPos({ x: clientX - dragStart.current.x, y: clientY - dragStart.current.y });
@@ -503,18 +397,14 @@
               try {
                 streamRef.current = await navigator.mediaDevices.getUserMedia({ video: true });
                 if (videoRef.current) videoRef.current.srcObject = streamRef.current;
-              } catch (err) {
-                console.warn(err);
-              }
+              } catch (err) {}
             };
             startCamera();
             return () => { if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop()); };
           }, []);
 
           useEffect(() => {
-            if (examState.timeRemaining <= 0) {
-              handleFinish(); return;
-            }
+            if (examState.timeRemaining <= 0) { handleFinish(); return; }
             const timerId = setInterval(() => {
               setExamState(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
             }, 1000);
@@ -522,185 +412,90 @@
           }, [examState.timeRemaining]);
 
           useEffect(() => {
-            const handleVisibilityChange = () => {
-              if (document.hidden) {
+            const handleSecurity = () => {
+              if (document.hidden || !document.fullscreenElement) {
                 setExamState(prev => {
                   if (prev.violations >= 3) return prev;
-                  const newViolations = prev.violations + 1;
-                  return {
-                    ...prev, violations: newViolations, isWarningOpen: true,
-                    warningMessage: newViolations >= 3 ? "PELANGGARAN MAKSIMAL! Ujian dihentikan otomatis." : `PERINGATAN ${newViolations} DARI 3! Berpindah aplikasi.`
-                  };
+                  const newV = prev.violations + 1;
+                  return { ...prev, violations: newV, isWarningOpen: true, warningMessage: newV >= 3 ? "DISKUALIFIKASI!" : `PELANGGARAN ${newV}/3!` };
                 });
               }
             };
-            const handleFullscreenChange = () => {
-              if (!document.fullscreenElement) {
-                setExamState(prev => {
-                  if (prev.violations >= 3) return prev;
-                  const newViolations = prev.violations + 1;
-                  return {
-                    ...prev, violations: newViolations, isWarningOpen: true,
-                    warningMessage: newViolations >= 3 ? "PELANGGARAN MAKSIMAL! Ujian dihentikan otomatis." : `PERINGATAN ${newViolations} DARI 3! Keluar layar penuh.`
-                  };
-                });
-              }
-            };
-            const handleContextMenu = (e) => e.preventDefault();
-            const handleKeyDown = (e) => { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) e.preventDefault(); };
-
-            document.addEventListener("visibilitychange", handleVisibilityChange);
-            document.addEventListener("fullscreenchange", handleFullscreenChange);
-            document.addEventListener("contextmenu", handleContextMenu);
-            window.addEventListener("keydown", handleKeyDown);
-
+            document.addEventListener("visibilitychange", handleSecurity);
+            document.addEventListener("fullscreenchange", handleSecurity);
+            document.addEventListener("contextmenu", e => e.preventDefault());
             return () => {
-              document.removeEventListener("visibilitychange", handleVisibilityChange);
-              document.removeEventListener("fullscreenchange", handleFullscreenChange);
-              document.removeEventListener("contextmenu", handleContextMenu);
-              window.removeEventListener("keydown", handleKeyDown);
+              document.removeEventListener("visibilitychange", handleSecurity);
+              document.removeEventListener("fullscreenchange", handleSecurity);
             };
           }, []);
 
           const formatTime = (seconds) => {
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
+            const m = Math.floor(seconds / 60);
             const s = seconds % 60;
-            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-          };
-
-          const handleAcknowledgeWarning = async () => {
-            setExamState(prev => ({ ...prev, isWarningOpen: false }));
-            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-              try { await document.documentElement.requestFullscreen(); } catch(e) {}
-            }
           };
 
           return (
             <div className="h-screen w-screen flex flex-col bg-slate-100 overflow-hidden relative select-none">
-              
               {showConfirmDialog && (
                 <div className="absolute inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
                   <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
-                    <h3 className="text-xl font-bold text-slate-800 mb-4">Kumpulkan Ujian?</h3>
-                    <p className="text-slate-600 mb-6">Apakah Anda yakin sudah selesai dan ingin mengumpulkan ujian?</p>
+                    <h3 className="text-xl font-bold text-slate-800 mb-4">Selesai?</h3>
                     <div className="flex gap-3">
-                      <button onClick={() => setShowConfirmDialog(false)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 rounded-xl transition-all">Batal</button>
-                      <button onClick={() => { setShowConfirmDialog(false); handleFinish(); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-xl transition-all">Ya, Selesai</button>
+                      <button onClick={() => setShowConfirmDialog(false)} className="flex-1 bg-slate-200 py-2 rounded-xl">Batal</button>
+                      <button onClick={handleFinish} className="flex-1 bg-green-600 text-white py-2 rounded-xl">Ya</button>
                     </div>
                   </div>
                 </div>
               )}
-
               {examState.isWarningOpen && (
-                <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4">
-                  <div className="bg-white rounded-2xl p-8 max-w-lg w-full text-center shadow-2xl transform scale-105 transition-transform">
-                    <i className="fa-solid fa-triangle-exclamation text-red-600 text-6xl mx-auto mb-4 animate-bounce"></i>
-                    <h2 className="text-3xl font-bold text-slate-800 mb-2 mt-4">{examState.violations >= 3 ? "DISKUALIFIKASI!" : "PERINGATAN!"}</h2>
-                    <p className="text-lg text-slate-600 mb-6">{examState.warningMessage}</p>
-                    <div className="bg-slate-100 p-4 rounded-lg mb-6 text-left">
-                      <p className="text-sm font-semibold">Tercatat {examState.violations} pelanggaran.</p>
-                      <p className="text-xs text-slate-500">{examState.violations >= 3 ? "Batas maksimal pelanggaran telah tercapai." : "Jika mencapai 3 pelanggaran, ujian dihentikan."}</p>
-                    </div>
-                    <button onClick={examState.violations >= 3 ? handleFinish : handleAcknowledgeWarning} className={`w-full font-bold py-4 rounded-xl text-lg shadow-lg transition-colors ${examState.violations >= 3 ? 'bg-slate-800 text-white' : 'bg-red-600 text-white'}`}>
-                      {examState.violations >= 3 ? 'KUMPULKAN & AKHIRI UJIAN' : 'SAYA MENGERTI'}
-                    </button>
+                <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4 text-white text-center">
+                  <div className="max-w-md">
+                    <i className="fa-solid fa-triangle-exclamation text-6xl mb-4"></i>
+                    <h2 className="text-3xl font-bold mb-2">{examState.warningMessage}</h2>
+                    <button onClick={() => setExamState(p => ({...p, isWarningOpen: false}))} className="bg-white text-red-600 px-8 py-3 rounded-xl font-bold mt-4">SAYA MENGERTI</button>
                   </div>
                 </div>
               )}
-
-              <header className="bg-white shadow-md z-10 px-6 py-3 flex items-center justify-between flex-shrink-0">
+              <header className="bg-white shadow-md z-10 px-6 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="bg-blue-100 text-blue-800 p-2 rounded-lg flex items-center gap-2">
-                    <i className="fa-solid fa-clock"></i>
-                    <span className="font-bold text-xl">{formatTime(examState.timeRemaining)}</span>
-                  </div>
-                  <div>
-                    <h1 className="font-bold text-slate-800">{student.activeTitle}</h1>
-                  </div>
+                  <div className="bg-blue-100 text-blue-800 p-2 rounded-lg font-bold text-xl">{formatTime(examState.timeRemaining)}</div>
+                  <h1 className="font-bold text-slate-800">{student.activeTitle}</h1>
                 </div>
-                
-                <div className="flex items-center gap-4">
-                  {examState.violations > 0 && (
-                    <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
-                      Peringatan: {examState.violations}
-                    </span>
-                  )}
-                  <button onClick={() => setShowConfirmDialog(true)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold shadow-sm flex items-center gap-2">
-                    <i className="fa-solid fa-circle-check"></i> SELESAI
-                  </button>
-                </div>
+                <button onClick={() => setShowConfirmDialog(true)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold">SELESAI</button>
               </header>
-
-              <main className="flex-1 relative w-full h-full bg-slate-200 p-2 min-h-0">
-                <div className="relative w-full h-full bg-white rounded-xl shadow-inner overflow-hidden">
-                  <iframe src={examUrlRef.current} className="absolute top-0 left-0 w-full h-full border-0" title="Form Ujian"></iframe>
-                </div>
-
+              <main className="flex-1 relative bg-slate-200 p-2">
+                <iframe src={examUrlRef.current} className="w-full h-full border-0 rounded-xl bg-white shadow-inner"></iframe>
                 <div 
-                  className="absolute top-4 right-6 w-32 h-24 sm:w-36 sm:h-28 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-[100] flex items-center justify-center cursor-move"
+                  className="absolute top-4 right-6 w-32 h-24 bg-black rounded-xl shadow-2xl border-4 border-slate-700 overflow-hidden z-[100] cursor-move"
                   style={{ transform: `translate(${camPos.x}px, ${camPos.y}px)`, touchAction: 'none' }}
-                  onMouseDown={handleDragStart}
-                  onTouchStart={handleDragStart}
+                  onMouseDown={handleDragStart} onTouchStart={handleDragStart}
                 >
                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1] pointer-events-none" />
-                  {!videoRef.current && <i className="fa-solid fa-camera text-slate-500 text-2xl absolute pointer-events-none"></i>}
-                  <div className="absolute bottom-1 right-1 bg-red-600 w-3 h-3 rounded-full animate-pulse border border-white pointer-events-none"></div>
                 </div>
               </main>
             </div>
           );
         };
 
-        // --- KOMPONEN: LAYAR SELESAI ---
-        const FinishedView = ({ student, examState, setStudent, setView }) => (
-          <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i className="fa-solid fa-circle-check text-green-600 text-5xl"></i>
-              </div>
-              <h2 className="text-3xl font-bold text-slate-800 mb-2">Ujian Selesai!</h2>
-              <p className="text-slate-600 mb-6">Terima kasih, jawaban Anda telah direkam.</p>
-              
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-8 text-left space-y-2">
-                <p className="text-sm text-slate-600 flex justify-between">
-                  <span>Sisa Waktu:</span> <span className="font-semibold text-slate-800">{Math.floor(examState.timeRemaining / 60)} menit</span>
-                </p>
-                <p className="text-sm text-slate-600 flex justify-between">
-                  <span>Catatan Pelanggaran:</span> 
-                  <span className={`font-semibold ${examState.violations >= 3 ? 'text-red-600 font-bold' : examState.violations > 0 ? 'text-red-500' : 'text-green-600'}`}>
-                    {examState.violations} kali {examState.violations >= 3 ? '(Diskualifikasi)' : ''}
-                  </span>
-                </p>
-              </div>
-
-              <button 
-                onClick={() => {
-                  setStudent({ token: '', activeUrl: '', activeTitle: '', activeDuration: 60 });
-                  setView('home');
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all"
-              >
-                Kembali ke Beranda
-              </button>
+        const FinishedView = ({ setView }) => (
+          <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 text-center">
+            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+              <i className="fa-solid fa-circle-check text-green-600 text-6xl mb-4"></i>
+              <h2 className="text-3xl font-bold text-slate-800 mb-2">Selesai!</h2>
+              <p className="text-slate-600 mb-8">Jawaban Anda telah terekam.</p>
+              <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl">Beranda</button>
             </div>
           </div>
         );
 
-        // --- KOMPONEN UTAMA (APP) ---
         function App() {
           const [view, setView] = useState('home'); 
           const [settings, setSettings] = useState({ tokens: [] });
           const [student, setStudent] = useState({ token: '', activeUrl: '', activeTitle: '', activeDuration: 60 });
-          const [examState, setExamState] = useState({
-            timeRemaining: 0,
-            violations: 0,
-            isWarningOpen: false,
-            warningMessage: ''
-          });
+          const [examState, setExamState] = useState({ timeRemaining: 0, violations: 0, isWarningOpen: false, warningMessage: '' });
 
-          // Inisialisasi awal tetap mengambil data
           useEffect(() => {
             const initSettings = async () => {
               if (GOOGLE_SCRIPT_URL !== '') {
@@ -708,13 +503,9 @@
                   const response = await fetch(GOOGLE_SCRIPT_URL);
                   const data = await response.json();
                   if (data && data.tokensData) {
-                    let parsedTokens = [];
-                    try {
-                      if (data.tokensData !== "undefined" && data.tokensData !== "null") {
-                        parsedTokens = typeof data.tokensData === 'string' ? JSON.parse(data.tokensData) : data.tokensData;
-                      }
-                    } catch (e) {}
-                    setSettings({ tokens: Array.isArray(parsedTokens) ? parsedTokens : [] });
+                    let parsed = [];
+                    try { if (data.tokensData !== "undefined" && data.tokensData !== "null") parsed = JSON.parse(data.tokensData); } catch (e) {}
+                    setSettings({ tokens: Array.isArray(parsed) ? parsed : [] });
                   }
                 } catch (e) {
                   const saved = localStorage.getItem('exambro_settings');
@@ -728,8 +519,8 @@
           switch (view) {
             case 'admin': return <AdminView settings={settings} setSettings={setSettings} setView={setView} />;
             case 'student_login': return <StudentLoginView settings={settings} setSettings={setSettings} student={student} setStudent={setStudent} setExamState={setExamState} setView={setView} />;
-            case 'exam': return <ExamView settings={settings} student={student} examState={examState} setExamState={setExamState} setView={setView} />;
-            case 'finished': return <FinishedView student={student} examState={examState} setStudent={setStudent} setView={setView} />;
+            case 'exam': return <ExamView student={student} examState={examState} setExamState={setExamState} setView={setView} />;
+            case 'finished': return <FinishedView setView={setView} />;
             default: return <HomeView setView={setView} />;
           }
         }
