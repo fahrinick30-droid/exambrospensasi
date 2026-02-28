@@ -137,14 +137,14 @@
               setIsSaving(false);
               setTimeout(() => {
                 setShowSuccess(false);
-                setView('home');
+                // Tidak langsung keluar ke 'home'
               }, 1500);
             } else {
               // Jika URL Script belum diisi, simpan ke lokal saja
               setShowSuccess(true);
               setTimeout(() => {
                 setShowSuccess(false);
-                setView('home');
+                // Tidak langsung keluar ke 'home'
               }, 1500);
             }
           };
@@ -251,7 +251,7 @@
                       onClick={() => setView('home')}
                       className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-xl transition-all"
                     >
-                      Kembali
+                      Keluar
                     </button>
                   </div>
                 </div>
