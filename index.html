@@ -291,6 +291,32 @@
             }
           };
 
+          // Efek suara khas selesai (Melodi Sukses)
+          const playFinishSound = () => {
+            initAudio();
+            const ctx = audioCtxRef.current;
+            const now = ctx.currentTime;
+            
+            const playNote = (freq, start, duration, vol = 0.3) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, start);
+              gain.gain.setValueAtTime(0, start);
+              gain.gain.linearRampToValueAtTime(vol, start + 0.05);
+              gain.gain.exponentialRampToValueAtTime(0.01, start + duration);
+              osc.start(start);
+              osc.stop(start + duration);
+            };
+
+            // Melodi: C5 -> E5 -> G5 (Chord C Major yang ceria)
+            playNote(523.25, now, 0.4);        // C5
+            playNote(659.25, now + 0.15, 0.4); // E5
+            playNote(783.99, now + 0.3, 0.6);  // G5
+          };
+
           const playSiren = () => {
             initAudio();
             if (sirenRef.current) return;
@@ -345,9 +371,11 @@
 
           const handleFinish = () => {
             stopSiren();
+            playFinishSound(); // Memainkan suara khas selesai
             if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
             if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
-            setView('finished');
+            // Berikan sedikit jeda sebelum pindah view agar suara terdengar
+            setTimeout(() => setView('finished'), 800);
           };
 
           const handleDragStart = (e) => {
@@ -400,13 +428,9 @@
 
           useEffect(() => {
             const handleSecurity = () => {
-              // Jika terdeteksi pindah tab atau keluar fullscreen
               if (document.hidden || !document.fullscreenElement) {
                 setExamState(prev => {
-                  // PERBAIKAN: Jika modal peringatan sudah terbuka, jangan tambah lagi!
-                  // Ini mencegah hitungan melonjak 1, 2, 3 secara instan
                   if (prev.isWarningOpen) return prev;
-                  
                   if (prev.violations >= 3) return prev;
                   const newV = prev.violations + 1;
                   return { 
