@@ -35,7 +35,6 @@
         const HomeView = ({ setView }) => {
           const [secretClicks, setSecretClicks] = useState(0);
 
-          // Fungsi untuk akses admin tersembunyi (Klik ikon 5x)
           const handleSecretClick = () => {
             const newCount = secretClicks + 1;
             if (newCount >= 5) {
@@ -43,7 +42,6 @@
               setSecretClicks(0);
             } else {
               setSecretClicks(newCount);
-              // Reset hitungan jika tidak diklik lagi dalam 2 detik
               setTimeout(() => setSecretClicks(0), 2000);
             }
           };
@@ -66,7 +64,7 @@
                     Mulai Ujian (Siswa)
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-300">v2.0.2 - Secure Mode Enabled</p>
+                <p className="text-[10px] text-slate-300">v2.0.4 - Maximum Security Mode</p>
               </div>
             </div>
           );
@@ -125,7 +123,7 @@
                 await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: formData });
                 setShowSuccess(true);
               } catch (err) {
-                alert("Pengaturan gagal terkirim ke Spreadsheet.");
+                alert("Gagal terhubung ke server.");
               }
               setIsSaving(false);
               setTimeout(() => setShowSuccess(false), 1500);
@@ -140,91 +138,36 @@
               <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
                 <div className="flex items-center gap-3 mb-6 border-b pb-4">
                   <i className="fa-solid fa-gear text-slate-700 text-3xl"></i>
-                  <h2 className="text-2xl font-bold text-slate-800">Pengaturan Ujian (Admin)</h2>
+                  <h2 className="text-2xl font-bold text-slate-800">Pengaturan (Admin)</h2>
                 </div>
 
                 <div className="space-y-6">
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <div className="flex justify-between items-center mb-4">
-                      <p className="font-bold text-blue-800 text-sm">
-                        <i className="fa-solid fa-layer-group mr-2"></i>Daftar Sesi Ujian (Berdasarkan Token)
-                      </p>
-                      <button 
-                        onClick={handleAddToken}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
-                      >
-                        <i className="fa-solid fa-plus"></i> Tambah Sesi
-                      </button>
+                      <p className="font-bold text-blue-800 text-sm"><i className="fa-solid fa-layer-group mr-2"></i>Daftar Token & Sesi</p>
+                      <button onClick={handleAddToken} className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"><i className="fa-solid fa-plus"></i> Tambah</button>
                     </div>
 
                     <div className="space-y-4">
-                      {tempSettings.tokens.length === 0 && (
-                        <p className="text-sm text-slate-500 text-center italic py-4">Belum ada sesi/token.</p>
-                      )}
-                      
                       {tempSettings.tokens.map((item, index) => (
                         <div key={index} className="bg-white p-4 rounded-lg border border-slate-200 flex flex-col gap-3 relative shadow-sm">
                           <div className="flex flex-col sm:flex-row gap-3">
-                            <div className="w-full sm:w-2/3">
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Judul Ujian</label>
-                              <input 
-                                type="text" 
-                                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={item.title || ''}
-                                onChange={(e) => handleTokenChange(index, 'title', e.target.value)}
-                                placeholder="MTK Kelas 7"
-                              />
-                            </div>
-                            <div className="w-full sm:w-1/3">
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Kode Token</label>
-                              <input 
-                                type="text" 
-                                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono"
-                                value={item.token}
-                                onChange={(e) => handleTokenChange(index, 'token', e.target.value)}
-                              />
-                            </div>
+                            <input className="flex-[2] border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" value={item.title} onChange={(e) => handleTokenChange(index, 'title', e.target.value)} placeholder="Judul Ujian" />
+                            <input className="flex-1 border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 uppercase font-mono" value={item.token} onChange={(e) => handleTokenChange(index, 'token', e.target.value)} placeholder="TOKEN" />
                           </div>
                           <div className="flex flex-col sm:flex-row gap-3">
-                            <div className="w-full sm:w-2/3">
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Link Soal</label>
-                              <input 
-                                type="text" 
-                                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={item.url}
-                                onChange={(e) => handleTokenChange(index, 'url', e.target.value)}
-                              />
-                            </div>
-                            <div className="w-full sm:w-1/3">
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Durasi (Menit)</label>
-                              <input 
-                                type="number" 
-                                className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={item.duration || ''}
-                                onChange={(e) => handleTokenChange(index, 'duration', parseInt(e.target.value) || 0)}
-                              />
-                            </div>
+                            <input className="flex-[2] border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" value={item.url} onChange={(e) => handleTokenChange(index, 'url', e.target.value)} placeholder="Link Form" />
+                            <input className="flex-1 border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" type="number" value={item.duration} onChange={(e) => handleTokenChange(index, 'duration', e.target.value)} placeholder="Menit" />
                           </div>
-                          <button 
-                            onClick={() => handleRemoveToken(index)}
-                            className="absolute -top-3 -right-3 bg-red-100 hover:bg-red-500 text-red-600 hover:text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-md border border-white"
-                          >
-                            <i className="fa-solid fa-trash text-xs"></i>
-                          </button>
+                          <button onClick={() => handleRemoveToken(index)} className="absolute -top-3 -right-3 bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center shadow-md border border-white"><i className="fa-solid fa-trash text-xs"></i></button>
                         </div>
                       ))}
                     </div>
                   </div>
 
                   <div className="pt-4 flex gap-3">
-                    <button 
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className={`flex-1 ${isSaving ? 'bg-slate-500' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold py-3 px-6 rounded-xl transition-all`}
-                    >
-                      {isSaving ? 'Menyimpan...' : showSuccess ? 'Tersimpan!' : 'Simpan Pengaturan'}
-                    </button>
-                    <button onClick={() => setView('home')} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-xl transition-all">Keluar</button>
+                    <button onClick={handleSave} disabled={isSaving} className={`flex-1 ${isSaving ? 'bg-slate-500' : 'bg-blue-600 hover:bg-blue-700'} text-white font-semibold py-3 rounded-xl`}>{isSaving ? 'Menyimpan...' : showSuccess ? 'Tersimpan!' : 'Simpan Pengaturan'}</button>
+                    <button onClick={() => setView('home')} className="bg-slate-200 text-slate-700 font-semibold py-3 px-6 rounded-xl">Keluar</button>
                   </div>
                 </div>
               </div>
@@ -251,15 +194,11 @@
                 const data = await response.json();
                 if (data && data.tokensData) {
                   let parsed = [];
-                  try {
-                    if (data.tokensData !== "undefined" && data.tokensData !== "null") {
-                      parsed = typeof data.tokensData === 'string' ? JSON.parse(data.tokensData) : data.tokensData;
-                    }
-                  } catch (e) {}
+                  try { if (data.tokensData !== "undefined" && data.tokensData !== "null") parsed = JSON.parse(data.tokensData); } catch (e) {}
                   latestTokens = Array.isArray(parsed) ? parsed : [];
                   setSettings({ tokens: latestTokens });
                 }
-              } catch (error) { console.warn("Sync failed."); }
+              } catch (error) {}
             }
 
             const enteredToken = student.token.trim().toUpperCase();
@@ -308,9 +247,9 @@
                   <p className="text-slate-500">Masukkan token ujian Anda</p>
                 </div>
                 <div className="space-y-4">
-                  {errorMsg && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-sm">{errorMsg}</div>}
+                  {errorMsg && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm text-center">{errorMsg}</div>}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Token Ujian</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1 text-center">Token Ujian</label>
                     <input 
                       type="text" 
                       className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 uppercase font-mono tracking-widest text-center text-lg font-bold"
@@ -320,24 +259,12 @@
                       disabled={isLoading}
                     />
                   </div>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6 text-sm text-yellow-800">
-                    <p className="font-bold flex items-center gap-2 mb-1"><i className="fa-solid fa-shield-halved"></i> Perhatian!</p>
-                    <ul className="list-disc pl-5 space-y-1 text-xs">
-                      <li>Sistem akan mengunci layar secara otomatis.</li>
-                      <li>Kamera aktif untuk pemantauan ujian.</li>
-                      <li>Membuka tab lain dianggap pelanggaran.</li>
-                    </ul>
-                  </div>
                   <div className="pt-4 flex gap-3">
-                    <button 
-                      onClick={startExam}
-                      disabled={isLoading}
-                      className={`flex-1 ${isLoading ? 'bg-slate-400' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all`}
-                    >
+                    <button onClick={startExam} disabled={isLoading} className={`flex-1 ${isLoading ? 'bg-slate-400' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2`}>
                       {isLoading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-play"></i>}
                       <span>{isLoading ? (statusMsg || 'Memproses...') : 'Mulai Kerjakan'}</span>
                     </button>
-                    <button onClick={() => setView('home')} className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-3 rounded-xl px-4" disabled={isLoading}><i className="fa-solid fa-right-from-bracket"></i></button>
+                    <button onClick={() => setView('home')} className="bg-slate-200 text-slate-700 p-3 rounded-xl px-4" disabled={isLoading}><i className="fa-solid fa-right-from-bracket"></i></button>
                   </div>
                 </div>
               </div>
@@ -349,41 +276,83 @@
         const ExamView = ({ student, examState, setExamState, setView }) => {
           const videoRef = useRef(null);
           const streamRef = useRef(null);
+          const audioCtxRef = useRef(null);
+          const sirenRef = useRef(null);
           const [showConfirmDialog, setShowConfirmDialog] = useState(false);
           const examUrlRef = useRef(student.activeUrl);
           const [camPos, setCamPos] = useState({ x: 0, y: 0 });
           const [isDraggingCam, setIsDraggingCam] = useState(false);
           const dragStart = useRef({ x: 0, y: 0 });
 
-          // Fungsi Suara Keras (Booster Volume dengan gain tinggi)
-          const playLoudAlert = () => {
-            try {
+          const initAudio = () => {
+            if (!audioCtxRef.current) {
               const AudioContext = window.AudioContext || window.webkitAudioContext;
-              const ctx = new AudioContext();
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
-              
-              osc.connect(gain);
-              gain.connect(ctx.destination);
-              
-              // Set volume digital maksimal (1.0)
-              gain.gain.setValueAtTime(1.0, ctx.currentTime);
-              gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
-              
-              osc.type = 'sine';
-              osc.frequency.setValueAtTime(880, ctx.currentTime); // Nada A5
-              osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 1.5);
-              
-              osc.start(ctx.currentTime);
-              osc.stop(ctx.currentTime + 1.5);
-            } catch (e) { console.warn("Audio Context blocked."); }
+              audioCtxRef.current = new AudioContext();
+            }
           };
 
+          const playSiren = (loop = true) => {
+            initAudio();
+            if (sirenRef.current) return;
+
+            const ctx = audioCtxRef.current;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.type = 'sawtooth';
+            gain.gain.setValueAtTime(0.5, ctx.currentTime);
+            
+            const now = ctx.currentTime;
+            osc.frequency.setValueAtTime(440, now);
+            
+            let i = 0;
+            const sirenInterval = setInterval(() => {
+              if (!sirenRef.current) {
+                clearInterval(sirenInterval);
+                return;
+              }
+              const freq = 440 + Math.sin(i) * 200;
+              osc.frequency.setTargetAtTime(freq, ctx.currentTime, 0.05);
+              i += 0.5;
+            }, 50);
+
+            osc.start();
+            sirenRef.current = { osc, gain, interval: sirenInterval };
+
+            if (!loop) {
+              setTimeout(() => stopSiren(), 2000);
+            }
+          };
+
+          const stopSiren = () => {
+            if (sirenRef.current) {
+              try {
+                sirenRef.current.osc.stop();
+                sirenRef.current.osc.disconnect();
+                sirenRef.current.gain.disconnect();
+                clearInterval(sirenRef.current.interval);
+              } catch(e) {}
+              sirenRef.current = null;
+            }
+          };
+
+          useEffect(() => {
+            if (examState.isWarningOpen) {
+              // Mainkan sirine terus-menerus (looping) selama modal peringatan terbuka
+              playSiren(true);
+            } else {
+              stopSiren();
+            }
+          }, [examState.isWarningOpen]);
+
           const handleFinish = () => {
-            playLoudAlert(); // Mainakan suara keras saat konfirmasi "Ya"
+            stopSiren();
             if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
             if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
-            setTimeout(() => setView('finished'), 200); // Sedikit delay agar suara sempat berbunyi
+            setView('finished');
           };
 
           const handleDragStart = (e) => {
@@ -440,7 +409,12 @@
                 setExamState(prev => {
                   if (prev.violations >= 3) return prev;
                   const newV = prev.violations + 1;
-                  return { ...prev, violations: newV, isWarningOpen: true, warningMessage: newV >= 3 ? "DISKUALIFIKASI!" : `PELANGGARAN ${newV}/3!` };
+                  return { 
+                    ...prev, 
+                    violations: newV, 
+                    isWarningOpen: true, 
+                    warningMessage: `Pelanggaran ${newV}` // Sekarang pesan utama adalah nomor pelanggaran
+                  };
                 });
               }
             };
@@ -462,27 +436,14 @@
           return (
             <div className="h-screen w-screen flex flex-col bg-slate-100 overflow-hidden relative select-none">
               
-              {/* MODAL KONFIRMASI DENGAN TEKS MERAH PERINGATAN */}
               {showConfirmDialog && (
                 <div className="absolute inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
-                  <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-red-500">
+                  <div className="bg-white rounded-2xl p-8 max-sm w-full text-center shadow-2xl border-4 border-red-500">
                     <i className="fa-solid fa-triangle-exclamation text-red-600 text-5xl mb-4 animate-pulse"></i>
-                    <h3 className="text-xl font-black text-red-600 mb-6 leading-tight uppercase">
-                      Apakah Anda Sudah Klik KIRIM atau SUBMIT ?
-                    </h3>
+                    <h3 className="text-xl font-black text-red-600 mb-6 leading-tight uppercase">Apakah Anda Sudah Klik KIRIM atau SUBMIT ?</h3>
                     <div className="flex gap-4">
-                      <button 
-                        onClick={() => setShowConfirmDialog(false)} 
-                        className="flex-1 bg-slate-200 hover:bg-slate-300 py-3 rounded-xl font-bold transition-colors"
-                      >
-                        BELUM
-                      </button>
-                      <button 
-                        onClick={handleFinish} 
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold shadow-lg transition-colors"
-                      >
-                        SUDAH
-                      </button>
+                      <button onClick={() => setShowConfirmDialog(false)} className="flex-1 bg-slate-200 py-3 rounded-xl font-bold">BELUM</button>
+                      <button onClick={handleFinish} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold shadow-lg">SUDAH</button>
                     </div>
                   </div>
                 </div>
@@ -490,10 +451,13 @@
 
               {examState.isWarningOpen && (
                 <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4 text-white text-center">
-                  <div className="max-w-md">
-                    <i className="fa-solid fa-triangle-exclamation text-6xl mb-4"></i>
-                    <h2 className="text-3xl font-bold mb-2">{examState.warningMessage}</h2>
-                    <button onClick={() => setExamState(p => ({...p, isWarningOpen: false}))} className="bg-white text-red-600 px-8 py-3 rounded-xl font-bold mt-4">SAYA MENGERTI</button>
+                  <div className="max-w-md bg-white p-8 rounded-3xl shadow-2xl text-slate-800 border-[10px] border-red-500">
+                    <i className="fa-solid fa-triangle-exclamation text-red-600 text-7xl mb-4 animate-bounce"></i>
+                    <h2 className="text-5xl font-black mb-2 text-red-600 uppercase tracking-tighter">{examState.warningMessage}</h2>
+                    <p className="text-slate-600 mb-6 font-bold text-lg leading-snug">Anda terdeteksi keluar dari aplikasi ujian!</p>
+                    <button onClick={examState.violations >= 3 ? handleFinish : () => setExamState(p => ({...p, isWarningOpen: false}))} className="w-full bg-red-600 text-white py-4 rounded-2xl font-black text-2xl shadow-xl active:scale-95 transition-all">
+                      {examState.violations >= 3 ? 'KUMPULKAN SEKARANG' : 'SAYA MENGERTI'}
+                    </button>
                   </div>
                 </div>
               )}
@@ -503,7 +467,7 @@
                   <div className="bg-blue-100 text-blue-800 p-2 rounded-lg font-bold text-xl">{formatTime(examState.timeRemaining)}</div>
                   <h1 className="font-bold text-slate-800">{student.activeTitle}</h1>
                 </div>
-                <button onClick={() => setShowConfirmDialog(true)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-green-700 transition-colors">SELESAI</button>
+                <button onClick={() => setShowConfirmDialog(true)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow-md">SELESAI</button>
               </header>
 
               <main className="flex-1 relative bg-slate-200 p-2">
@@ -520,13 +484,21 @@
           );
         };
 
-        const FinishedView = ({ setView }) => (
+        const FinishedView = () => (
           <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 text-center">
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
               <i className="fa-solid fa-circle-check text-green-600 text-6xl mb-4"></i>
               <h2 className="text-3xl font-bold text-slate-800 mb-2">Selesai!</h2>
               <p className="text-slate-600 mb-8">Jawaban Anda telah terekam.</p>
-              <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl shadow-md transition-all active:scale-95">Beranda</button>
+              <button 
+                onClick={() => {
+                  window.close();
+                  setTimeout(() => { window.location.href = "about:blank"; }, 100);
+                }} 
+                className="w-full bg-red-600 text-white font-semibold py-3 rounded-xl shadow-md"
+              >
+                Keluar
+              </button>
             </div>
           </div>
         );
@@ -548,10 +520,7 @@
                     try { if (data.tokensData !== "undefined" && data.tokensData !== "null") parsed = JSON.parse(data.tokensData); } catch (e) {}
                     setSettings({ tokens: Array.isArray(parsed) ? parsed : [] });
                   }
-                } catch (e) {
-                  const saved = localStorage.getItem('exambro_settings');
-                  if (saved) setSettings(JSON.parse(saved));
-                }
+                } catch (e) {}
               }
             };
             initSettings();
@@ -561,7 +530,7 @@
             case 'admin': return <AdminView settings={settings} setSettings={setSettings} setView={setView} />;
             case 'student_login': return <StudentLoginView settings={settings} setSettings={setSettings} student={student} setStudent={setStudent} setExamState={setExamState} setView={setView} />;
             case 'exam': return <ExamView student={student} examState={examState} setExamState={setExamState} setView={setView} />;
-            case 'finished': return <FinishedView setView={setView} />;
+            case 'finished': return <FinishedView />;
             default: return <HomeView setView={setView} />;
           }
         }
