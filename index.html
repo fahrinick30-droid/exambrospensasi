@@ -65,10 +65,8 @@
                     <i className="fa-solid fa-play"></i>
                     Mulai Ujian (Siswa)
                   </button>
-                  
-                  {/* Tombol Admin dihapus dari UI publik agar tidak terlihat siswa */}
                 </div>
-                <p className="text-[10px] text-slate-300">v2.0.1 - Secure Mode Enabled</p>
+                <p className="text-[10px] text-slate-300">v2.0.2 - Secure Mode Enabled</p>
               </div>
             </div>
           );
@@ -357,10 +355,35 @@
           const [isDraggingCam, setIsDraggingCam] = useState(false);
           const dragStart = useRef({ x: 0, y: 0 });
 
+          // Fungsi Suara Keras (Booster Volume dengan gain tinggi)
+          const playLoudAlert = () => {
+            try {
+              const AudioContext = window.AudioContext || window.webkitAudioContext;
+              const ctx = new AudioContext();
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              
+              // Set volume digital maksimal (1.0)
+              gain.gain.setValueAtTime(1.0, ctx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
+              
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(880, ctx.currentTime); // Nada A5
+              osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 1.5);
+              
+              osc.start(ctx.currentTime);
+              osc.stop(ctx.currentTime + 1.5);
+            } catch (e) { console.warn("Audio Context blocked."); }
+          };
+
           const handleFinish = () => {
+            playLoudAlert(); // Mainakan suara keras saat konfirmasi "Ya"
             if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
             if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
-            setView('finished');
+            setTimeout(() => setView('finished'), 200); // Sedikit delay agar suara sempat berbunyi
           };
 
           const handleDragStart = (e) => {
@@ -438,17 +461,33 @@
 
           return (
             <div className="h-screen w-screen flex flex-col bg-slate-100 overflow-hidden relative select-none">
+              
+              {/* MODAL KONFIRMASI DENGAN TEKS MERAH PERINGATAN */}
               {showConfirmDialog && (
                 <div className="absolute inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
-                  <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
-                    <h3 className="text-xl font-bold text-slate-800 mb-4">Selesai?</h3>
-                    <div className="flex gap-3">
-                      <button onClick={() => setShowConfirmDialog(false)} className="flex-1 bg-slate-200 py-2 rounded-xl">Batal</button>
-                      <button onClick={handleFinish} className="flex-1 bg-green-600 text-white py-2 rounded-xl">Ya</button>
+                  <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-red-500">
+                    <i className="fa-solid fa-triangle-exclamation text-red-600 text-5xl mb-4 animate-pulse"></i>
+                    <h3 className="text-xl font-black text-red-600 mb-6 leading-tight uppercase">
+                      Apakah Anda Sudah Klik KIRIM atau SUBMIT ?
+                    </h3>
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => setShowConfirmDialog(false)} 
+                        className="flex-1 bg-slate-200 hover:bg-slate-300 py-3 rounded-xl font-bold transition-colors"
+                      >
+                        BELUM
+                      </button>
+                      <button 
+                        onClick={handleFinish} 
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold shadow-lg transition-colors"
+                      >
+                        SUDAH
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
+
               {examState.isWarningOpen && (
                 <div className="absolute inset-0 z-50 bg-red-600 flex items-center justify-center p-4 text-white text-center">
                   <div className="max-w-md">
@@ -458,13 +497,15 @@
                   </div>
                 </div>
               )}
+
               <header className="bg-white shadow-md z-10 px-6 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="bg-blue-100 text-blue-800 p-2 rounded-lg font-bold text-xl">{formatTime(examState.timeRemaining)}</div>
                   <h1 className="font-bold text-slate-800">{student.activeTitle}</h1>
                 </div>
-                <button onClick={() => setShowConfirmDialog(true)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold">SELESAI</button>
+                <button onClick={() => setShowConfirmDialog(true)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-green-700 transition-colors">SELESAI</button>
               </header>
+
               <main className="flex-1 relative bg-slate-200 p-2">
                 <iframe src={examUrlRef.current} className="w-full h-full border-0 rounded-xl bg-white shadow-inner"></iframe>
                 <div 
@@ -485,7 +526,7 @@
               <i className="fa-solid fa-circle-check text-green-600 text-6xl mb-4"></i>
               <h2 className="text-3xl font-bold text-slate-800 mb-2">Selesai!</h2>
               <p className="text-slate-600 mb-8">Jawaban Anda telah terekam.</p>
-              <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl">Beranda</button>
+              <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl shadow-md transition-all active:scale-95">Beranda</button>
             </div>
           </div>
         );
