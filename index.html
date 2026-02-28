@@ -266,27 +266,59 @@
         };
 
         // --- KOMPONEN: LOGIN SISWA ---
-        const StudentLoginView = ({ settings, student, setStudent, setExamState, setView }) => {
+        const StudentLoginView = ({ settings, setSettings, student, setStudent, setExamState, setView }) => {
           const [isLoading, setIsLoading] = useState(false);
+          const [statusMsg, setStatusMsg] = useState('');
           const [errorMsg, setErrorMsg] = useState('');
 
           const startExam = async () => {
             setErrorMsg('');
+            setStatusMsg('');
             
-            // Validasi Input
+            // Validasi Input Dasar
             if (!student.token) {
               setErrorMsg("Harap isi Token Ujian!");
               return;
             }
 
-            // Pencocokan Token dengan Link
+            setIsLoading(true);
+
+            // --- SOLUSI ON-DEMAND: Tarik data terbaru dari Spreadsheet saat tombol diklik ---
+            let latestTokens = settings.tokens;
+            if (GOOGLE_SCRIPT_URL !== '') {
+              setStatusMsg("Menghubungkan ke server...");
+              try {
+                const response = await fetch(GOOGLE_SCRIPT_URL);
+                const data = await response.json();
+                
+                if (data && data.tokensData) {
+                  let parsedTokens = [];
+                  try {
+                    if (data.tokensData !== "undefined" && data.tokensData !== "null") {
+                      parsedTokens = typeof data.tokensData === 'string' ? JSON.parse(data.tokensData) : data.tokensData;
+                    }
+                  } catch (e) { console.error("Gagal parsing token", e); }
+
+                  latestTokens = Array.isArray(parsedTokens) ? parsedTokens : [];
+                  // Simpan ke state global agar data terbaru tersimpan di App
+                  setSettings({ tokens: latestTokens });
+                }
+              } catch (error) {
+                console.warn("Gagal sinkronisasi data terbaru. Menggunakan data cache.");
+              }
+            }
+
+            // Pencocokan Token dengan data yang SUDAH DIPERBARUI
             const enteredToken = student.token.trim().toUpperCase();
-            const matchedExam = settings.tokens.find(t => t.token.toUpperCase() === enteredToken);
+            const matchedExam = latestTokens.find(t => t.token.toUpperCase() === enteredToken);
 
             if (!matchedExam) {
-              setErrorMsg("Token tidak valid atau tidak ditemukan! Silakan periksa kembali Token Anda.");
+              setErrorMsg("Token tidak valid! Pastikan token benar atau tanyakan ke Guru.");
+              setIsLoading(false);
               return;
             }
+            
+            setStatusMsg("Memeriksa kamera...");
             
             // Simpan link dan judul yang cocok dengan token ke data student
             setStudent({ 
@@ -295,16 +327,14 @@
               activeTitle: matchedExam.title || 'Ujian CBT Exambro',
               activeDuration: parseInt(matchedExam.duration) || 60
             });
-            setIsLoading(true);
 
             // Meminta Izin Kamera Sebelum Masuk Ujian
             try {
               const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-              // Matikan sementara agar tidak dobel. ExamView akan memanggil ulang
               stream.getTracks().forEach(track => track.stop());
             } catch (err) {
               console.warn("Kamera diblokir/ditolak:", err);
-              setErrorMsg("Akses kamera WAJIB diizinkan untuk dapat mengikuti ujian ini! Silakan izinkan akses kamera pada popup browser Anda.");
+              setErrorMsg("Akses kamera WAJIB diizinkan untuk dapat mengikuti ujian ini!");
               setIsLoading(false);
               return;
             }
@@ -315,7 +345,7 @@
                 await document.documentElement.requestFullscreen();
               }
             } catch (err) {
-              console.warn("Fullscreen diblokir oleh lingkungan iframe.");
+              console.warn("Fullscreen diblokir.");
             }
 
             setExamState({
@@ -333,7 +363,7 @@
               <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
                 <div className="text-center mb-8">
                   <h2 className="text-2xl font-bold text-slate-800">Masuk Ujian</h2>
-                  <p className="text-slate-500">Silakan masukkan token untuk memulai</p>
+                  <p className="text-slate-500">Masukkan token ujian Anda</p>
                 </div>
 
                 <div className="space-y-4">
@@ -351,6 +381,7 @@
                       value={student.token}
                       onChange={(e) => setStudent({...student, token: e.target.value})}
                       placeholder="Masukkan token..."
+                      disabled={isLoading}
                     />
                   </div>
                   
@@ -359,9 +390,9 @@
                       <i className="fa-solid fa-shield-halved"></i> Perhatian Penting!
                     </p>
                     <ul className="list-disc pl-5 space-y-2">
-                      <li>Ujian akan mengunci layar secara otomatis.</li>
-                      <li>Kamera akan diaktifkan untuk pemantauan.</li>
-                      <li>Membuka tab/aplikasi lain akan dicatat sebagai pelanggaran.</li>
+                      <li>Sistem akan mengunci layar secara otomatis.</li>
+                      <li>Kamera aktif untuk pemantauan ujian.</li>
+                      <li>Membuka tab lain dianggap sebagai pelanggaran.</li>
                     </ul>
                   </div>
 
@@ -369,19 +400,19 @@
                     <button 
                       onClick={startExam}
                       disabled={isLoading}
-                      className={`flex-1 ${isLoading ? 'bg-slate-400' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all`}
+                      className={`flex-1 ${isLoading ? 'bg-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all`}
                     >
                       {isLoading ? (
                         <i className="fa-solid fa-spinner fa-spin"></i>
                       ) : (
                         <i className="fa-solid fa-play"></i>
                       )}
-                      <span>{isLoading ? 'Memeriksa Kamera...' : 'Mulai Kerjakan'}</span>
+                      <span>{isLoading ? (statusMsg || 'Memproses...') : 'Mulai Kerjakan'}</span>
                     </button>
                     <button 
                       onClick={() => setView('home')}
                       className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-3 rounded-xl transition-all px-4"
-                      title="Batal"
+                      disabled={isLoading}
                     >
                       <i className="fa-solid fa-right-from-bracket"></i>
                     </button>
@@ -398,7 +429,6 @@
           const streamRef = useRef(null);
           const [showConfirmDialog, setShowConfirmDialog] = useState(false);
           
-          // Mengambil URL soal yang berhasil dicocokkan dengan Token siswa tadi
           const examUrlRef = useRef(student.activeUrl);
 
           // State untuk Drag Kamera
@@ -427,7 +457,7 @@
               osc2.start(ctx.currentTime + 0.2);
               osc2.stop(ctx.currentTime + 0.5);
             } catch (e) {
-              console.log("Web Audio API tidak didukung browser ini.");
+              console.log("Web Audio API tidak didukung.");
             }
           };
 
@@ -464,7 +494,7 @@
               window.removeEventListener('mousemove', handleDragMove);
               window.removeEventListener('mouseup', handleDragEnd);
               window.removeEventListener('touchmove', handleDragMove);
-              window.removeEventListener('touchmove', handleDragEnd);
+              window.removeEventListener('touchend', handleDragEnd);
             };
           }, [isDraggingCam]);
 
@@ -631,9 +661,7 @@
                 <i className="fa-solid fa-circle-check text-green-600 text-5xl"></i>
               </div>
               <h2 className="text-3xl font-bold text-slate-800 mb-2">Ujian Selesai!</h2>
-              <p className="text-slate-600 mb-6">
-                Terima kasih, jawaban Anda telah direkam.
-              </p>
+              <p className="text-slate-600 mb-6">Terima kasih, jawaban Anda telah direkam.</p>
               
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-8 text-left space-y-2">
                 <p className="text-sm text-slate-600 flex justify-between">
@@ -663,14 +691,8 @@
         // --- KOMPONEN UTAMA (APP) ---
         function App() {
           const [view, setView] = useState('home'); 
-          
-          const [settings, setSettings] = useState({
-            tokens: [] // Array untuk menyimpan daftar Token & Link
-          });
-          
-          // State murid ditambahkan 'activeUrl' untuk menyimpan link soal yg berhasil didapat dari token
+          const [settings, setSettings] = useState({ tokens: [] });
           const [student, setStudent] = useState({ token: '', activeUrl: '', activeTitle: '', activeDuration: 60 });
-          
           const [examState, setExamState] = useState({
             timeRemaining: 0,
             violations: 0,
@@ -678,52 +700,40 @@
             warningMessage: ''
           });
 
-          // Mengambil pengaturan (termasuk JSON Tokens) dari Spreadsheet saat aplikasi dimuat
+          // Inisialisasi awal tetap mengambil data
           useEffect(() => {
-            const loadSettings = async () => {
+            const initSettings = async () => {
               if (GOOGLE_SCRIPT_URL !== '') {
                 try {
                   const response = await fetch(GOOGLE_SCRIPT_URL);
                   const data = await response.json();
-                  
                   if (data && data.tokensData) {
                     let parsedTokens = [];
                     try {
-                      // Cek apakah data valid dan bukan "undefined" sebelum di-parse
                       if (data.tokensData !== "undefined" && data.tokensData !== "null") {
                         parsedTokens = typeof data.tokensData === 'string' ? JSON.parse(data.tokensData) : data.tokensData;
                       }
-                    } catch (e) { console.error("Gagal parsing token", e); }
-
-                    setSettings({
-                      tokens: Array.isArray(parsedTokens) ? parsedTokens : []
-                    });
-                    return; 
+                    } catch (e) {}
+                    setSettings({ tokens: Array.isArray(parsedTokens) ? parsedTokens : [] });
                   }
-                } catch (error) {
-                  console.warn("Gagal membaca dari Spreadsheet. Menggunakan pengaturan lokal...", error);
+                } catch (e) {
+                  const saved = localStorage.getItem('exambro_settings');
+                  if (saved) setSettings(JSON.parse(saved));
                 }
               }
-              
-              const savedSettings = localStorage.getItem('exambro_settings');
-              if (savedSettings) {
-                setSettings(JSON.parse(savedSettings));
-              }
             };
-            
-            loadSettings();
+            initSettings();
           }, []);
 
           switch (view) {
             case 'admin': return <AdminView settings={settings} setSettings={setSettings} setView={setView} />;
-            case 'student_login': return <StudentLoginView settings={settings} student={student} setStudent={setStudent} setExamState={setExamState} setView={setView} />;
+            case 'student_login': return <StudentLoginView settings={settings} setSettings={setSettings} student={student} setStudent={setStudent} setExamState={setExamState} setView={setView} />;
             case 'exam': return <ExamView settings={settings} student={student} examState={examState} setExamState={setExamState} setView={setView} />;
             case 'finished': return <FinishedView student={student} examState={examState} setStudent={setStudent} setView={setView} />;
             default: return <HomeView setView={setView} />;
           }
         }
 
-        // Render Aplikasi ke dalam div #root
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
